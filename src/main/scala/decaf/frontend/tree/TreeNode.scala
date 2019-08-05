@@ -36,7 +36,9 @@ object TreeNode {
     */
   case class ClassDef[Field <: FieldNode, A <: Annot](id: Id, parent: Option[Id], fields: List[Field],
                                                       override val annot: A = null)
-    extends ClassDefNode with Annotated[A] with Def
+    extends ClassDefNode with Annotated[A] with Def {
+    def parentDetached: ClassDef[Field, A] = ClassDef(id, None, fields, annot).setPos(pos)
+  }
 
   /**
     * Field/Member of a class.
@@ -384,10 +386,10 @@ object TreeNode {
   /**
     * Unary expression.
     *
-    * @param op   unary operator
-    * @param expr operand
+    * @param op      unary operator
+    * @param operand operand
     */
-  case class UnaryExpr[A <: Annot](op: UnaryOp, expr: Expr[A], override val annot: A = null) extends Expr[A]
+  case class UnaryExpr[A <: Annot](op: UnaryOp, operand: Expr[A], override val annot: A = null) extends Expr[A]
 
   /**
     * Binary expression.
@@ -421,70 +423,78 @@ object TreeNode {
 
   trait BinaryOp extends Op
 
+  trait ArithOp extends BinaryOp
+
   /**
     * Addition: {{{ + }}}.
     */
-  case object ADD extends BinaryOp
+  case object ADD extends ArithOp
 
   /**
     * Subtraction: {{{ - }}}.
     */
-  case object SUB extends BinaryOp
+  case object SUB extends ArithOp
 
   /**
     * Multiplication: {{{ * }}}.
     */
-  case object MUL extends BinaryOp
+  case object MUL extends ArithOp
 
   /**
     * Division: {{{ / }}}.
     */
-  case object DIV extends BinaryOp
+  case object DIV extends ArithOp
 
   /**
     * Modulo: {{{ % }}}.
     */
-  case object MOD extends BinaryOp
+  case object MOD extends ArithOp
+
+  trait LogicOp extends BinaryOp
 
   /**
     * Logical and: {{{ && }}}.
     */
-  case object AND extends BinaryOp
+  case object AND extends LogicOp
 
   /**
     * Logical or: {{{ || }}}.
     */
-  case object OR extends BinaryOp
+  case object OR extends LogicOp
+
+  trait EqOp extends BinaryOp
 
   /**
     * Equal to: {{{ == }}}.
     */
-  case object EQ extends BinaryOp
+  case object EQ extends EqOp
 
   /**
     * Not equal to: {{{ != }}}.
     */
-  case object NE extends BinaryOp
+  case object NE extends EqOp
+
+  trait CmpOp extends BinaryOp
 
   /**
     * Less than: {{{ < }}}.
     */
-  case object LT extends BinaryOp
+  case object LT extends CmpOp
 
   /**
     * Less than or equal to: {{{ <= }}}.
     */
-  case object LE extends BinaryOp
+  case object LE extends CmpOp
 
   /**
     * Greater than: {{{ > }}}.
     */
-  case object GT extends BinaryOp
+  case object GT extends CmpOp
 
   /**
     * Greater than or equal to: {{{ >= }}}.
     */
-  case object GE extends BinaryOp
+  case object GE extends CmpOp
 
   /**
     * IO expression for reading an integer from stdin:
@@ -521,9 +531,7 @@ object TreeNode {
     * @param elemType array element type
     * @param length   array length
     */
-  case class NewArray[TypeLit <: TypeLitNode, A <: Annot](elemType: TypeLit, length: Expr[A],
-                                                          override val annot: A = null)
-    extends Expr[A]
+  case class NewArray[A <: Annot](elemType: TypeLit[A], length: Expr[A], override val annot: A = null) extends Expr[A]
 
   /**
     * Instance-of-expression:

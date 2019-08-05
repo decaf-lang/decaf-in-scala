@@ -73,7 +73,7 @@ object SyntaxTree {
   type ReadInt = TreeNode.ReadInt[Null]
   type ReadLine = TreeNode.ReadLine[Null]
   type NewClass = TreeNode.NewClass[Null]
-  type NewArray = TreeNode.NewArray[TypeLit, Null]
+  type NewArray = TreeNode.NewArray[Null]
   type ClassTest = TreeNode.ClassTest[Null]
   type ClassCast = TreeNode.ClassCast[Null]
 }

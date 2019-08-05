@@ -16,12 +16,8 @@ sealed trait Type extends Annot {
   def sub(that: Type): Boolean
 
   def eq(that: Type): Boolean = this == that
-}
 
-object NoType extends Type {
-  override def sub(that: Type): Boolean = true
-
-  override def toString: String = "Error"
+  def ne(that: Type): Boolean = !(this eq that)
 }
 
 class BaseType extends Type {
@@ -78,6 +74,11 @@ case class ArrayType(elemType: Type) extends Type {
     case _ => this eq that
   }
 
+  override def eq(that: Type): Boolean = that match {
+    case ArrayType(t) => elemType eq t
+    case _ => false
+  }
+
   override def toString: String = s"$elemType[]"
 }
 
@@ -86,8 +87,27 @@ case class FunType(params: List[Type], ret: Type) extends Type {
     case NoType => true
     case FunType(params2, ret2) => (params.length == params2.length) &&
       (ret sub ret2) && (params2 zip params).forall { case (p2, p) => p2 sub p }
-    case _ => ???
+    case _ => false
   }
 
-  override def toString: String = params.map(_ + "->").mkString + ret
+  override def eq(that: Type): Boolean = that match {
+    case FunType(ts, t) => (ret eq t) && params.length == ts.length && (params zip ts forall eq)
+    case _ => false
+  }
+
+  override def toString: String = params.map(_ + " -> ").mkString + ret
+}
+
+object NoType extends Type {
+  override def sub(that: Type): Boolean = true
+
+  override def toString: String = "Error"
+}
+
+object TypedImplicit {
+
+  implicit class Typed[T <: Type](self: Annotated[T]) {
+    def typ: T = self.annot
+  }
+
 }
