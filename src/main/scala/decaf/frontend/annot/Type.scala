@@ -18,6 +18,10 @@ sealed trait Type extends Annot {
   def eq(that: Type): Boolean = this == that
 
   def ne(that: Type): Boolean = !(this eq that)
+
+  def noError: Boolean = true
+
+  def isClassType: Boolean = false
 }
 
 class BaseType extends Type {
@@ -65,6 +69,8 @@ case class ClassType(name: String, parent: Option[ClassType] = None) extends Typ
     case _ => false
   }
 
+  override def isClassType: Boolean = true
+
   override def toString: String = s"class : $name"
 }
 
@@ -101,13 +107,15 @@ case class FunType(params: List[Type], ret: Type) extends Type {
 object NoType extends Type {
   override def sub(that: Type): Boolean = true
 
+  override def noError: Boolean = false
+
   override def toString: String = "Error"
 }
 
 object TypedImplicit {
 
-  implicit class Typed[T <: Type](self: Annotated[T]) {
-    def typ: T = self.annot
+  implicit class __Typed__(self: Annotated[Type]) {
+    def typ: Type = self.annot
   }
 
 }

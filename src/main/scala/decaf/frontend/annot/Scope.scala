@@ -3,17 +3,20 @@ package decaf.frontend.annot
 import scala.collection.mutable
 
 sealed trait Scope extends Annot {
-  type SymbolT <: Symbol
+  type Item <: Symbol
+  type Owner <: Symbol
 
-  protected var symbols: mutable.Map[String, SymbolT] = new mutable.HashMap
+  protected var symbols: mutable.Map[String, Item] = new mutable.HashMap
+
+  var owner: Owner = _
 
   def contains(key: String): Boolean = symbols.contains(key)
 
-  def apply(key: String): SymbolT = symbols(key)
+  def apply(key: String): Item = symbols(key)
 
-  def lookup(key: String): Option[SymbolT] = symbols.get(key)
+  def lookup(key: String): Option[Item] = symbols.get(key)
 
-  def declare(symbol: SymbolT): Unit = symbols(symbol.name) = symbol
+  def declare(symbol: Item): Unit = symbols(symbol.name) = symbol
 
   override def toString: String = "{ " + symbols.map {
     case (name, symbol) => s"  $name -> $symbol"
@@ -22,26 +25,28 @@ sealed trait Scope extends Annot {
 
 object ScopedImplicit {
 
-  implicit class Scoped[S <: Scope](self: Annotated[S]) {
+  implicit class __Scoped__[S <: Scope](self: Annotated[S]) {
     def scope: S = self.annot
   }
 
 }
 
 class GlobalScope extends Scope {
-  type SymbolT = ClassSymbol
+  type Item = ClassSymbol
 }
 
 class ClassScope(val parent: Option[ClassScope] = None) extends Scope {
-  type SymbolT = FieldSymbol
+  type Item = FieldSymbol
+  type Owner = ClassSymbol
 }
 
 class FormalScope extends Scope {
-  type SymbolT = VarSymbol
+  type Item = VarSymbol
+  type Owner = FunSymbol
 }
 
 class LocalScope extends Scope {
-  type SymbolT = VarSymbol
+  type Item = VarSymbol
 }
 
 class ScopeContext private(global: GlobalScope, private val scopes: List[Scope]) {
@@ -56,9 +61,15 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
     case _ => new ScopeContext(global, scope :: scopes)
   }
 
-  def currentClass: ClassSymbol = ???
+  def currentClass: ClassSymbol = scopes.find(_.isInstanceOf[ClassScope]) match {
+    case Some(scope) => scope.asInstanceOf[ClassScope].owner
+    case None => throw new NoSuchElementException("current class symbol")
+  }
 
-  def currentFun: FunSymbol = ???
+  def currentFun: FunSymbol = scopes.find(_.isInstanceOf[FormalScope]) match {
+    case Some(scope) => scope.asInstanceOf[FormalScope].owner
+    case None => throw new NoSuchElementException("current function symbol")
+  }
 
   /**
     * Lookup a symbol by key. By saying "lookup", the user expects that the symbol is found.
@@ -82,6 +93,8 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
   def apply(key: String): Symbol = lookup(key).get
 
   def lookupClass(key: String): Option[ClassSymbol] = global.lookup(key)
+
+  def getClass(key: String): ClassSymbol = global(key)
 
   /**
     * Search a symbol by key. By saying "search", the user expects that the symbol is _not_ found.
@@ -107,6 +120,6 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
   def declare(symbol: Symbol): Unit = {
     assert(scopes.nonEmpty)
     val scope = scopes.head
-    scope.declare(symbol.asInstanceOf[scope.SymbolT])
+    scope.declare(symbol.asInstanceOf[scope.Item])
   }
 }

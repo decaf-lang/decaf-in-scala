@@ -3,38 +3,38 @@ package decaf.frontend.parsing
 import java.io.Reader
 
 import decaf.frontend.tree.SyntaxTree._
-import decaf.frontend.tree.TreeNode
+import decaf.frontend.tree.TreeNode._
 
 import scala.util.parsing.input.Positional
 
 class TokenParsers extends Lexer {
   def intLit: Parser[IntLit] = positioned((decimal | hex) ^^ {
-    TreeNode.IntLit(_)
+    IntLit(_)
   })
 
   def boolLit: Parser[BoolLit] = positioned(boolean ^^ {
-    TreeNode.BoolLit(_)
+    BoolLit(_)
   })
 
   def stringLit: Parser[StringLit] = positioned(quotedString ^^ {
-    TreeNode.StringLit(_)
+    StringLit(_)
   })
 
-  def nullLit: Parser[NullLit] = positioned("null" ^^^ TreeNode.NullLit())
+  def nullLit: Parser[NullLit] = positioned("null" ^^^ NullLit())
 
   def unit: Parser[Unit] = "(" ~ ")" ^^^ ()
 
-  def id: Parser[Id] = positioned(identifier ^^ TreeNode.Id)
+  def id: Parser[Id] = positioned(identifier ^^ Id)
 }
 
 class TypeParsers extends TokenParsers {
-  def typ1: Parser[TypeLit] = positioned("int" ^^^ TreeNode.TInt() | "bool" ^^^ TreeNode.TBool()
-    | "string" ^^^ TreeNode.TString() | "void" ^^^ TreeNode.TVoid() | "class" ~> id ^^ {
-    TreeNode.TClass(_)
+  def typ1: Parser[TypeLit] = positioned("int" ^^^ TInt() | "bool" ^^^ TBool()
+    | "string" ^^^ TString() | "void" ^^^ TVoid() | "class" ~> id ^^ {
+    TClass(_)
   })
 
   def typ: Parser[TypeLit] = typ1 ~ ("[" ~ "]").* ^^ {
-    case elemType ~ dims => dims.foldLeft(elemType) { (t, _) => TreeNode.TArray(t) }
+    case elemType ~ dims => dims.foldLeft(elemType) { (t, _) => TArray(t) }
   }
 }
 
@@ -42,28 +42,28 @@ class ExprParsers extends TypeParsers {
   def lit: Parser[Lit] = intLit | boolLit | stringLit | nullLit
 
   def expr1: Parser[Expr] = lit |
-    positioned("this" ^^^ TreeNode.This() |
+    positioned("this" ^^^ This() |
       "(" ~> expr <~ ")" |
-      "ReadInteger" ~ unit ^^^ TreeNode.ReadInt() |
-      "ReadLine" ~ unit ^^^ TreeNode.ReadLine() |
+      "ReadInteger" ~ unit ^^^ ReadInt() |
+      "ReadLine" ~ unit ^^^ ReadLine() |
       "new" ~> id <~ unit ^^ {
-        TreeNode.NewClass(_)
+        NewClass(_)
       } |
       "new" ~> typ ~ ("[" ~> expr <~ "]") ^^ {
-        case t ~ e => TreeNode.NewArray(t, e)
+        case t ~ e => NewArray(t, e)
       } |
       "instanceof" ~ "(" ~> expr ~ ("," ~> id <~ ")") ^^ {
-        case e ~ t => TreeNode.ClassTest(e, t)
+        case e ~ t => ClassTest(e, t)
       } |
-      ("(" ~ "class" ~> id <~ ")") ~ expr1 ^^ { case t ~ e => TreeNode.ClassCast(e, t) } |
-      id ~ ("(" ~> exprList <~ ")") ^^ { case f ~ xs => TreeNode.Call(None, f, xs) } |
+      ("(" ~ "class" ~> id <~ ")") ~ expr1 ^^ { case t ~ e => ClassCast(e, t) } |
+      id ~ ("(" ~> exprList <~ ")") ^^ { case f ~ xs => Call(None, f, xs) } |
       id ^^ {
-        TreeNode.Var(_)
+        Var(_)
       })
 
-  def access: Parser[Expr => Expr] = "[" ~> expr <~ "]" ^^ { index => (e: Expr) => TreeNode.IndexSel(e, index) } |
-    "." ~> id ~ ("(" ~> exprList <~ ")") ^^ { case f ~ xs => (e: Expr) => TreeNode.Call(Some(e), f, xs) } |
-    "." ~> id ^^ { x => (e: Expr) => TreeNode.FieldSel(e, x) }
+  def access: Parser[Expr => Expr] = "[" ~> expr <~ "]" ^^ { index => (e: Expr) => IndexSel(e, index) } |
+    "." ~> id ~ ("(" ~> exprList <~ ")") ^^ { case f ~ xs => (e: Expr) => Call(Some(e), f, xs) } |
+    "." ~> id ^^ { x => (e: Expr) => FieldSel(e, x) }
 
   def expr2: Parser[Expr] = positioned(expr1 ~ access.* ^^ {
     case recv ~ ps => ps.foldLeft(recv) {
@@ -71,46 +71,46 @@ class ExprParsers extends TypeParsers {
     }
   })
 
-  def opUn: Parser[TreeNode.UnaryOp] = "-" ^^^ TreeNode.NEG | "!" ^^^ TreeNode.NOT
+  def opUn: Parser[UnaryOp] = "-" ^^^ NEG | "!" ^^^ NOT
 
   def expr3: Parser[Expr] = opUn.* ~ expr2 ^^ {
     case ops ~ e => ops.foldRight(e) {
-      TreeNode.UnaryExpr(_, _)
+      UnaryExpr(_, _)
     }
   }
 
-  case class BinaryOp(self: TreeNode.BinaryOp) extends Positional
+  case class PosOp(self: BinaryOp) extends Positional
 
-  private def mkBinaryExprParser(op: Parser[BinaryOp], term: Parser[Expr]): Parser[Expr] =
+  private def mkBinaryExprParser(op: Parser[PosOp], term: Parser[Expr]): Parser[Expr] =
     term ~ (op ~ term).* ^^ {
-      case t ~ ps => ps.foldLeft(t) { case (l, op ~ r) => TreeNode.BinaryExpr(op.self, l, r).setPos(op.pos) }
+      case t ~ ps => ps.foldLeft(t) { case (l, op ~ r) => BinaryExpr(op.self, l, r).setPos(op.pos) }
     }
 
-  def opMul: Parser[BinaryOp] = positioned(
-    ("*" ^^^ TreeNode.MUL | "/" ^^^ TreeNode.DIV | "%" ^^^ TreeNode.MOD) map BinaryOp)
+  def opMul: Parser[PosOp] = positioned(
+    ("*" ^^^ MUL | "/" ^^^ DIV | "%" ^^^ MOD) map PosOp)
 
   def expr4: Parser[Expr] = mkBinaryExprParser(opMul, expr3)
 
-  def opAdd: Parser[BinaryOp] = positioned(
-    ("+" ^^^ TreeNode.ADD | "-" ^^^ TreeNode.SUB) map BinaryOp)
+  def opAdd: Parser[PosOp] = positioned(
+    ("+" ^^^ ADD | "-" ^^^ SUB) map PosOp)
 
   def expr5: Parser[Expr] = mkBinaryExprParser(opAdd, expr4)
 
-  def opCmp: Parser[BinaryOp] = positioned(
-    ("<=" ^^^ TreeNode.LE | ">=" ^^^ TreeNode.GE | "<" ^^^ TreeNode.LT | ">" ^^^ TreeNode.GT) map BinaryOp)
+  def opCmp: Parser[PosOp] = positioned(
+    ("<=" ^^^ LE | ">=" ^^^ GE | "<" ^^^ LT | ">" ^^^ GT) map PosOp)
 
   def expr6: Parser[Expr] = mkBinaryExprParser(opCmp, expr5)
 
-  def opEql: Parser[BinaryOp] = positioned(
-    ("==" ^^^ TreeNode.EQ | "!=" ^^^ TreeNode.NE) map BinaryOp)
+  def opEql: Parser[PosOp] = positioned(
+    ("==" ^^^ EQ | "!=" ^^^ NE) map PosOp)
 
   def expr7: Parser[Expr] = mkBinaryExprParser(opEql, expr6)
 
-  def opAnd: Parser[BinaryOp] = positioned("&&" ^^^ TreeNode.AND map BinaryOp)
+  def opAnd: Parser[PosOp] = positioned("&&" ^^^ AND map PosOp)
 
   def expr8: Parser[Expr] = mkBinaryExprParser(opAnd, expr7)
 
-  def opOr: Parser[BinaryOp] = positioned("||" ^^^ TreeNode.OR map BinaryOp)
+  def opOr: Parser[PosOp] = positioned("||" ^^^ OR map PosOp)
 
   def expr9: Parser[Expr] = mkBinaryExprParser(opOr, expr8)
 
@@ -124,46 +124,52 @@ class StmtParsers extends ExprParsers {
     case t ~ i => LocalVarDef(t, i)
   })
 
-  def block: Parser[Block] = positioned("{" ~> stmt.* <~ "}" ^^ Block)
+  def block: Parser[Block] = positioned("{" ~> stmt.* <~ "}" ^^ {
+    Block(_)
+  })
 
   def assign: Parser[Assign] = positioned(expr ~ ("=" ~> expr) <~ ";" ^^ {
-    case l ~ e => TreeNode.Assign(l, e)
+    case l ~ e => Assign(l, e)
   })
 
   def exprEval: Parser[ExprEval] = positioned(expr <~ ";" ^^ {
-    TreeNode.ExprEval(_)
+    ExprEval(_)
   })
 
-  def skip: Parser[Skip] = positioned(";" ^^^ TreeNode.Skip())
+  def skip: Parser[Skip] = positioned(";" ^^^ {
+    Skip()
+  })
 
   def simpleStmt: Parser[SimpleStmt] = assign | exprEval | skip
 
   def ifStmt: Parser[If] = positioned("if" ~> ("(" ~> expr <~ ")") ~ stmt ~ ("else" ~> stmt).? ^^ {
-    case b ~ t ~ f => TreeNode.If(b, t, f)
+    case b ~ t ~ f => If(b, t, f)
   })
 
   def whileStmt: Parser[While] = positioned("while" ~> expr ~ stmt ^^ {
-    case b ~ s => TreeNode.While(b, s)
+    case b ~ s => While(b, s)
   })
 
   def forStmt: Parser[For] = positioned("for" ~> (("(" ~> simpleStmt <~ ";") ~ (expr <~ ";") ~ (simpleStmt <~ ")")
     ~ stmt) ^^ {
-    case i ~ b ~ u ~ s => TreeNode.For(i, b, u, s)
+    case i ~ b ~ u ~ s => For(i, b, u, s)
   })
 
-  def breakStmt: Parser[Break] = positioned("break" ~ ";" ^^^ TreeNode.Break())
+  def breakStmt: Parser[Break] = positioned("break" ~ ";" ^^^ {
+    Break()
+  })
 
   def returnStmt: Parser[Return] = positioned("return" ~> expr.? <~ ";" ^^ {
-    TreeNode.Return(_)
+    Return(_)
   })
 
   def printStmt: Parser[Print] = positioned("Print" ~ "(" ~> exprList <~ ")" ~ ";" ^^ {
-    TreeNode.Print(_)
+    Print(_)
   })
 
-  def controlStmt: Parser[ControlStmt] = simpleStmt | ifStmt | whileStmt | forStmt | breakStmt | returnStmt | printStmt
+  def controlStmt: Parser[Stmt] = simpleStmt | ifStmt | whileStmt | forStmt | breakStmt | returnStmt | printStmt
 
-  def stmt: Parser[Stmt] = localVarDef | block | controlStmt ^^ ControlStmtWarp
+  def stmt: Parser[Stmt] = localVarDef | block | controlStmt
 }
 
 class TopLevelParsers extends StmtParsers {
@@ -182,11 +188,11 @@ class TopLevelParsers extends StmtParsers {
   def field: Parser[Field] = varDef | methodDef
 
   def classDef: Parser[ClassDef] = positioned("class" ~> id ~ ("extends" ~> id).? ~ ("{" ~> field.* <~ "}") ^^ {
-    case i ~ e ~ fs => TreeNode.ClassDef(i, e, fs)
+    case i ~ e ~ fs => ClassDef(i, e, fs)
   })
 
   def topLevel: Parser[Tree] = positioned(classDef.* ^^ {
-    TreeNode.TopLevel(_)
+    TopLevel(_)
   })
 }
 

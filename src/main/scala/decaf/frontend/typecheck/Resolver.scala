@@ -1,22 +1,23 @@
 package decaf.frontend.typecheck
 
 import decaf.error._
-import decaf.frontend.annot.ResolvedImplicit._
+import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
-import decaf.frontend.tree.TreeNode._
-import decaf.frontend.tree.{ResolvedTree, SyntaxTree, TreeNode}
+import decaf.frontend.tree.SyntaxTree._
+import decaf.frontend.tree.TreeNode.Id
+import decaf.frontend.tree.{ResolvedTree => Resolved}
 import decaf.schedule.Phase
 
 import scala.collection.mutable.HashMap
 
 class Resolver extends Phase("resolver") with TypeLitResolver {
-  override type Input = SyntaxTree.Tree
-  override type Output = ResolvedTree.Tree
+  override type Input = Tree
+  override type Output = Resolved.Tree
 
-  override def transform(tree: SyntaxTree.Tree): ResolvedTree.Tree = {
+  override def transform(tree: Tree): Resolved.Tree = {
     val classes = tree.classes
-    val mapping = new HashMap[String, SyntaxTree.ClassDef]
+    val mapping = new HashMap[String, ClassDef]
 
     // Check conflicting definitions. If any, ignore the redefined ones.
     classes.foreach { clazz =>
@@ -86,15 +87,15 @@ class Resolver extends Phase("resolver") with TypeLitResolver {
       case None => issue(NoMainClassError)
     }
 
-    TopLevel(resolvedClasses, globalScope).setPos(tree.pos)
+    Resolved.TopLevel(resolvedClasses)(globalScope).setPos(tree.pos)
   }
 
-  private def eliminateCycles(mapping: HashMap[String, SyntaxTree.ClassDef]): Unit = {
+  private def eliminateCycles(mapping: HashMap[String, ClassDef]): Unit = {
     val visitedTime = new HashMap[String, Int]
     mapping.keys.foreach(visitedTime(_) = 0)
 
     @scala.annotation.tailrec
-    def visit(from: SyntaxTree.ClassDef, node: String, time: Int): Unit = {
+    def visit(from: ClassDef, node: String, time: Int): Unit = {
       if (visitedTime(node) == 0) { // not visited yet
         visitedTime(node) = time
         val clazz = mapping(node)
@@ -118,8 +119,8 @@ class Resolver extends Phase("resolver") with TypeLitResolver {
     }
   }
 
-  private def createClassSymbols(mapping: HashMap[String, SyntaxTree.ClassDef], created: GlobalScope): Unit = {
-    def create(clazz: SyntaxTree.ClassDef): Unit = {
+  private def createClassSymbols(mapping: HashMap[String, ClassDef], created: GlobalScope): Unit = {
+    def create(clazz: ClassDef): Unit = {
       if (!created.contains(clazz.name)) {
         val symbol = clazz.parent match {
           case Some(Id(base)) =>
@@ -140,11 +141,11 @@ class Resolver extends Phase("resolver") with TypeLitResolver {
     mapping.values.foreach(create)
   }
 
-  def resolveClassFields(mapping: HashMap[String, SyntaxTree.ClassDef],
-                         globalScope: GlobalScope): List[ResolvedTree.ClassDef] = {
-    val resolved = new HashMap[String, ResolvedTree.ClassDef]
+  def resolveClassFields(mapping: HashMap[String, ClassDef],
+                         globalScope: GlobalScope): List[Resolved.ClassDef] = {
+    val resolved = new HashMap[String, Resolved.ClassDef]
 
-    def resolve(clazz: SyntaxTree.ClassDef): Unit = {
+    def resolve(clazz: ClassDef): Unit = {
       if (!resolved.contains(clazz.name)) {
         val symbol: ClassSymbol = clazz.parent match {
           case Some(Id(base)) =>
@@ -154,11 +155,11 @@ class Resolver extends Phase("resolver") with TypeLitResolver {
             globalScope(clazz.name)
         }
         val ctx = new ScopeContext(globalScope).open(symbol.scope)
-        val resolvedFields: List[ResolvedTree.Field] = clazz.fields.flatMap {
-          case f: SyntaxTree.VarDef => resolveVarDef(f, ctx)
-          case f: SyntaxTree.MethodDef => resolveMethodDef(f, ctx)
+        val resolvedFields = clazz.fields.flatMap {
+          case f: VarDef => resolveVarDef(f, ctx)(MemberVar)
+          case f: MethodDef => resolveMethodDef(f, ctx)
         }
-        resolved(clazz.name) = ClassDef(clazz.id, clazz.parent, resolvedFields, symbol).setPos(clazz.pos)
+        resolved(clazz.name) = Resolved.ClassDef(clazz.id, clazz.parent, resolvedFields)(symbol).setPos(clazz.pos)
       }
     }
 
@@ -166,7 +167,7 @@ class Resolver extends Phase("resolver") with TypeLitResolver {
     mapping.keys.map(resolved).toList
   }
 
-  def resolveVarDef(varDef: SyntaxTree.VarDef, ctx: ScopeContext): Option[ResolvedTree.VarDef] =
+  def resolveVarDef(varDef: VarDef, ctx: ScopeContext)(kind: VarKind): Option[Resolved.VarDef] =
   // Variables can never be overriden, thus the identifier cannot conflict with any already defined symbol.
     ctx.search(varDef.name) match {
       case Some(earlier) =>
@@ -177,37 +178,37 @@ class Resolver extends Phase("resolver") with TypeLitResolver {
         }
         None
       case None =>
-        val SyntaxTree.VarDef(typeLit, id) = varDef
+        val VarDef(typeLit, id) = varDef
         val typedTypeLit = resolveTypeLit(typeLit, ctx)
         typedTypeLit.typ match {
           case NoType => None
           case VoidType => issue(new BadVarTypeError(id.name, varDef.pos)); None
           case t =>
-            val symbol = new VarSymbol(varDef, t)
+            val symbol = new VarSymbol(varDef, t, kind)
             ctx.declare(symbol)
-            Some(ResolvedTree.VarDef(typedTypeLit, id, symbol).setPos(varDef.pos))
+            Some(Resolved.VarDef(typedTypeLit, id)(symbol).setPos(varDef.pos))
         }
     }
 
-  def resolveMethodDef(methodDef: SyntaxTree.MethodDef, ctx: ScopeContext): Option[ResolvedTree.MethodDef] =
+  def resolveMethodDef(methodDef: MethodDef, ctx: ScopeContext): Option[Resolved.MethodDef] =
   // Only non-static methods can be overriden, but the type signature must be equivalent.
     ctx.search(methodDef.name) match {
       case Some(earlier) =>
         earlier match {
           case suspect: FunSymbol if !suspect.isStatic && !methodDef.isStatic =>
             // maybe override
-            val SyntaxTree.MethodDef(isStatic, returnType, id, params, body) = methodDef
+            val MethodDef(isStatic, returnType, id, params, body) = methodDef
             val typedReturnType = resolveTypeLit(returnType, ctx)
             typedReturnType.typ match {
               case NoType => None
               case retType =>
                 val formalScope = new FormalScope
-                val typedParams = params.flatMap(resolveVarDef(_, ctx.open(formalScope)))
+                val typedParams = params.flatMap(resolveVarDef(_, ctx.open(formalScope))(OtherVar))
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 if (suspect.typ eq funType) { // override success
                   val symbol = new FunSymbol(methodDef, funType, typedParams.map(_.symbol), formalScope, ctx.currentClass)
                   ctx.declare(symbol)
-                  Some(ResolvedTree.MethodDef(isStatic, typedReturnType, id, typedParams, body).setPos(methodDef.pos))
+                  Some(Resolved.MethodDef(isStatic, typedReturnType, id, typedParams, body)(symbol).setPos(methodDef.pos))
                 } else { // override failure
                   issue(new BadOverrideError(methodDef.name, suspect.parent.name, suspect.pos))
                   None
@@ -218,17 +219,17 @@ class Resolver extends Phase("resolver") with TypeLitResolver {
             None
         }
       case None =>
-        val SyntaxTree.MethodDef(isStatic, returnType, id, params, body) = methodDef
+        val MethodDef(isStatic, returnType, id, params, body) = methodDef
         val typedReturnType = resolveTypeLit(returnType, ctx)
         typedReturnType.typ match {
           case NoType => None
           case retType =>
             val formalScope = new FormalScope
-            val typedParams = params.flatMap(resolveVarDef(_, ctx.open(formalScope)))
+            val typedParams = params.flatMap(resolveVarDef(_, ctx.open(formalScope))(OtherVar))
             val funType = FunType(typedParams.map(_.typeLit.typ), retType)
             val symbol = new FunSymbol(methodDef, funType, typedParams.map(_.symbol), formalScope, ctx.currentClass)
             ctx.declare(symbol)
-            Some(ResolvedTree.MethodDef(isStatic, typedReturnType, id, typedParams, body).setPos(methodDef.pos))
+            Some(Resolved.MethodDef(isStatic, typedReturnType, id, typedParams, body)(symbol).setPos(methodDef.pos))
         }
     }
 }

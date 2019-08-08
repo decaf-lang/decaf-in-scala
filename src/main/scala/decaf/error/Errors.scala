@@ -40,6 +40,18 @@ object NoMainClassError extends Error("no legal Main class named 'Main' was foun
 
 // Typer
 
+class BreakOutOfLoopError(pos: Position)
+  extends Error("'break' is only allowed inside a loop")
+
+class BadTestExpr(pos: Position)
+  extends Error("test expression must have bool type")
+
+class BadPrintArgError(k: Int, actual: Type, pos: Position)
+  extends Error(s"incompatible argument $k: $actual given, int/bool/string expected")
+
+class BadReturnTypeError(expected: Type, actual: Type, pos: Position)
+  extends Error(s"incompatible return: $actual given, $expected expected")
+
 class IncompatUnOpError(op: UnaryOp, exprType: Type, pos: Position)
   extends Error(s"incompatible operand: $op $exprType")
 
@@ -70,8 +82,8 @@ class FieldNotFoundError(field: String, clazz: String, pos: Position)
 class FieldNotAccessError(field: String, clazz: String, pos: Position)
   extends Error(s"field '$field' of '$clazz' not accessible here")
 
-class RefNonStaticError(field: String, clazz: String, pos: Position)
-  extends Error(s"can not reference a non-static field '$field' from static method from '$clazz'")
+class RefNonStaticError(field: String, method: String, pos: Position)
+  extends Error(s"can not reference a non-static field '$field' from static method from '$method'")
 
 class NotClassFieldError(field: String, typ: String, pos: Position)
   extends Error(s"cannot access field '$field' from '$typ'")
@@ -84,3 +96,7 @@ class BadArgCountError(method: String, expected: Int, actual: Int, pos: Position
 
 class BadArgTypeError(k: Int, expected: String, actual: String, pos: Position)
   extends Error(s"incompatible argument $k: $actual given, $expected expected")
+
+class BadLengthArgError(count: Int, pos: Position)
+  extends Error(s"function 'length' expects 0 argument(s) but $count given")
+
