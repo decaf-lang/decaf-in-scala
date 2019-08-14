@@ -7,5 +7,7 @@ trait ErrorIssuer {
 
   def issue(error: Error): Unit = errors.addOne(error)
 
+  def hasError: Boolean = errors.nonEmpty
+
   def printErrors(): Unit = errors.foreach(println)
 }

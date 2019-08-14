@@ -2,6 +2,8 @@ package decaf.frontend.parsing
 
 import java.io.Reader
 
+import decaf.driver.Phase
+import decaf.error.SyntaxError
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 
@@ -102,9 +104,12 @@ class ExprParsers extends TypeParsers {
 }
 
 class StmtParsers extends ExprParsers {
-  def localVarDef: Parser[LocalVarDef] = positioned(typ ~ id <~ ";" ^^ {
-    case t ~ i => LocalVarDef(t, i)
-  })
+
+  case class Typed(typeLit: TypeLit, id: Id) extends Positional
+
+  def typed: Parser[Typed] = positioned(typ ~ id ^^ { case t ~ i => Typed(t, i) })
+
+  def localVarDef: Parser[LocalVarDef] = positioned(typed <~ ";" ^^ { r => LocalVarDef(r.typeLit, r.id) })
 
   def block: Parser[Block] = positioned("{" ~> stmt.* <~ "}" ^^ { Block(_) })
 
@@ -143,13 +148,11 @@ class StmtParsers extends ExprParsers {
 }
 
 class TopLevelParsers extends StmtParsers {
-  def varDef: Parser[VarDef] = positioned(localVarDef <~ ';' ^^ {
-    case LocalVarDef(typeLit, id) => VarDef(typeLit, id)
-  })
+  def varDef: Parser[VarDef] = positioned(typed <~ ";" ^^ { r => VarDef(r.typeLit, r.id) })
 
   def methodDef: Parser[MethodDef] = positioned(("static".? ^^ { _.isDefined }) ~ typ ~ id ~
-    ("(" ~> repsep(localVarDef, ",") <~ ")") ~ block ^^ {
-    case b ~ t ~ f ~ ts ~ s => MethodDef(b, t, f, ts, s)
+    ("(" ~> repsep(typed, ",") <~ ")") ~ block ^^ {
+    case b ~ t ~ f ~ ts ~ s => MethodDef(b, t, f, ts.map { r => LocalVarDef(r.typeLit, r.id) }, s)
   })
 
   def field: Parser[Field] = varDef | methodDef
@@ -161,6 +164,15 @@ class TopLevelParsers extends StmtParsers {
   def topLevel: Parser[Tree] = positioned(classDef.* ^^ { TopLevel(_) })
 }
 
-class Parser extends TopLevelParsers {
-  def parse(file: Reader): ParseResult[Tree] = parseAll(topLevel, file)
+class Parser extends Phase[Reader, Tree]("parser") {
+  private val parser = new TopLevelParsers
+
+  override def transform(in: Reader): Tree =
+    parser.parseAll(parser.topLevel, in) match {
+      case parser.Success(result, _) => result
+      case f: parser.NoSuccess =>
+        issue(new SyntaxError(f.next.pos))
+        println(s"${ f.next.pos }:${ f.msg }:\n${ f.next.pos.longString }")
+        TopLevel(Nil)
+    }
 }

@@ -8,7 +8,7 @@ import decaf.frontend.annot._
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.{NamedTree => Named, TypedTree => Typed}
-import decaf.schedule.Phase
+import decaf.driver.Phase
 
 class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
@@ -130,6 +130,9 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
   def typeExpr(expr: Expr)(implicit ctx: ScopeContext): Typed.Expr = {
     val typed = expr match {
+      // Transfer left values to `typeLValue`
+      case e: LValue => typeLValue(e)
+
       // Trivial cases for literals
       case IntLit(v) => Typed.IntLit(v)(IntType)
       case BoolLit(v) => Typed.BoolLit(v)(BoolType)

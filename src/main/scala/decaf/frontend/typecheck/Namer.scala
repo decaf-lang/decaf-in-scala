@@ -7,7 +7,7 @@ import decaf.frontend.annot._
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.{NamedTree => Named}
-import decaf.schedule.Phase
+import decaf.driver.Phase
 
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
