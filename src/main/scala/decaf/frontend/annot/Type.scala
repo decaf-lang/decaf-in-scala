@@ -22,9 +22,15 @@ sealed trait Type extends Annot {
   def noError: Boolean = true
 
   def isClassType: Boolean = false
+
+  def isVoidType: Boolean = false
+
+  def isBaseType: Boolean = false
 }
 
 class BaseType extends Type {
+  override def isBaseType: Boolean = true
+
   override def sub(that: Type): Boolean = that match {
     case NoType => true
     case _ => this eq that
@@ -44,6 +50,8 @@ object StringType extends BaseType {
 }
 
 object VoidType extends BaseType {
+  override def isVoidType: Boolean = true
+
   override def toString: String = "void"
 }
 

@@ -2,9 +2,12 @@ package decaf.schedule
 
 import decaf.error.ErrorIssuer
 
-abstract class Phase(val name: String) extends ErrorIssuer {
-  type Input
-  type Output
+abstract class Phase[In, Out](val name: String) extends ErrorIssuer {
+  def transform(input: In): Out
 
-  def transform(input: Input): Output
+  def apply(input: In): Out = {
+    val out = transform(input)
+    printErrors()
+    out
+  }
 }

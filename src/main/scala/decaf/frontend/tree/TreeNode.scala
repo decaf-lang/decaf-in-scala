@@ -2,9 +2,9 @@ package decaf.frontend.tree
 
 import scala.util.parsing.input.Positional
 
-trait Node extends Product with Positional
-
 object TreeNode {
+
+  trait Node extends Product with Positional
 
   /**
     * Identifier.
@@ -13,6 +13,7 @@ object TreeNode {
     */
   case class Id(name: String) extends Node
 
+  implicit def __getIdName__(id: Id): String = id.name
 
   /**
     * Any definition must be named.
@@ -25,7 +26,7 @@ object TreeNode {
   /**
     * A general form of variable declaration.
     */
-  trait VarDecl extends Def {
+  trait Var extends Def {
     type TypeLitT <: Node
 
     val typeLit: TypeLitT

@@ -1,19 +1,33 @@
 package decaf.frontend.tree
 
 import decaf.frontend.annot._
-import decaf.frontend.tree.TreeNode.Id
 
-object TypedTree extends TreeLevelTmpl with BlockLevelTmpl {
+object TypedTree extends TreeTmpl {
 
   type TopLevelAnnot = GlobalScope
-  type ClassDefAnnot = ClassSymbol
-  type VarDefAnnot = VarSymbol
-  type MethodDefAnnot = FunSymbol
+  type ClassAnnot = ClassSymbol
+  type MemberVarAnnot = MemberVarSymbol
+  type LocalVarAnnot = LocalVarSymbol
+  type MethodAnnot = MethodSymbol
   type TypeLitAnnot = Type
-  type BlockAnnot = SyntaxTree.No
-  type ControlFlowStmtAnnot = SyntaxTree.No
+  type StmtAnnot = SyntaxTree.No
   type ExprAnnot = Type
 
-  case class TypeVar(id: Id, annot: Type) extends Expr
+  type ClassRef = ClassSymbol
+
+  // The following nodes only appear in a typed tree.
+
+  case class LocalVar(variable: LocalVarSymbol)(implicit val annot: ExprAnnot) extends LValue
+
+  case class MemberVar(receiver: Expr, variable: MemberVarSymbol)(implicit val annot: ExprAnnot) extends LValue
+
+  case class StaticCall(method: MethodSymbol, args: List[Expr])(implicit val annot: ExprAnnot) extends Expr
+
+  case class MemberCall(receiver: Expr, method: MethodSymbol, args: List[Expr])(implicit val annot: ExprAnnot)
+    extends Expr
+
+  case class ArrayLen(array: Expr)(implicit val annot: ExprAnnot) extends Expr
+
+  case class Ill(expr: SyntaxTree.Expr)(implicit val annot: ExprAnnot) extends LValue
 
 }

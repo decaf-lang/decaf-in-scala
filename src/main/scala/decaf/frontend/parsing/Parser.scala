@@ -8,17 +8,11 @@ import decaf.frontend.tree.TreeNode._
 import scala.util.parsing.input.Positional
 
 class TokenParsers extends Lexer {
-  def intLit: Parser[IntLit] = positioned((decimal | hex) ^^ {
-    IntLit(_)
-  })
+  def intLit: Parser[IntLit] = positioned((decimal | hex) ^^ { IntLit(_) })
 
-  def boolLit: Parser[BoolLit] = positioned(boolean ^^ {
-    BoolLit(_)
-  })
+  def boolLit: Parser[BoolLit] = positioned(boolean ^^ { BoolLit(_) })
 
-  def stringLit: Parser[StringLit] = positioned(quotedString ^^ {
-    StringLit(_)
-  })
+  def stringLit: Parser[StringLit] = positioned(quotedString ^^ { StringLit(_) })
 
   def nullLit: Parser[NullLit] = positioned("null" ^^^ NullLit())
 
@@ -29,9 +23,7 @@ class TokenParsers extends Lexer {
 
 class TypeParsers extends TokenParsers {
   def typ1: Parser[TypeLit] = positioned("int" ^^^ TInt() | "bool" ^^^ TBool()
-    | "string" ^^^ TString() | "void" ^^^ TVoid() | "class" ~> id ^^ {
-    TClass(_)
-  })
+    | "string" ^^^ TString() | "void" ^^^ TVoid() | "class" ~> id ^^ { TClass(_) })
 
   def typ: Parser[TypeLit] = typ1 ~ ("[" ~ "]").* ^^ {
     case elemType ~ dims => dims.foldLeft(elemType) { (t, _) => TArray(t) }
@@ -46,24 +38,16 @@ class ExprParsers extends TypeParsers {
       "(" ~> expr <~ ")" |
       "ReadInteger" ~ unit ^^^ ReadInt() |
       "ReadLine" ~ unit ^^^ ReadLine() |
-      "new" ~> id <~ unit ^^ {
-        NewClass(_)
-      } |
-      "new" ~> typ ~ ("[" ~> expr <~ "]") ^^ {
-        case t ~ e => NewArray(t, e)
-      } |
-      "instanceof" ~ "(" ~> expr ~ ("," ~> id <~ ")") ^^ {
-        case e ~ t => ClassTest(e, t)
-      } |
+      "new" ~> id <~ unit ^^ { NewClass(_) } |
+      "new" ~> typ ~ ("[" ~> expr <~ "]") ^^ { case t ~ e => NewArray(t, e) } |
+      "instanceof" ~ "(" ~> expr ~ ("," ~> id <~ ")") ^^ { case e ~ t => ClassTest(e, t) } |
       ("(" ~ "class" ~> id <~ ")") ~ expr1 ^^ { case t ~ e => ClassCast(e, t) } |
       id ~ ("(" ~> exprList <~ ")") ^^ { case f ~ xs => Call(None, f, xs) } |
-      id ^^ {
-        Var(_)
-      })
+      id ^^ { VarSel(None, _) })
 
   def access: Parser[Expr => Expr] = "[" ~> expr <~ "]" ^^ { index => (e: Expr) => IndexSel(e, index) } |
     "." ~> id ~ ("(" ~> exprList <~ ")") ^^ { case f ~ xs => (e: Expr) => Call(Some(e), f, xs) } |
-    "." ~> id ^^ { x => (e: Expr) => FieldSel(e, x) }
+    "." ~> id ^^ { x => (e: Expr) => VarSel(Some(e), x) }
 
   def expr2: Parser[Expr] = positioned(expr1 ~ access.* ^^ {
     case recv ~ ps => ps.foldLeft(recv) {
@@ -74,9 +58,7 @@ class ExprParsers extends TypeParsers {
   def opUn: Parser[UnaryOp] = "-" ^^^ NEG | "!" ^^^ NOT
 
   def expr3: Parser[Expr] = opUn.* ~ expr2 ^^ {
-    case ops ~ e => ops.foldRight(e) {
-      UnaryExpr(_, _)
-    }
+    case ops ~ e => ops.foldRight(e) { UnaryExpr(_, _) }
   }
 
   case class PosOp(self: BinaryOp) extends Positional
@@ -124,26 +106,20 @@ class StmtParsers extends ExprParsers {
     case t ~ i => LocalVarDef(t, i)
   })
 
-  def block: Parser[Block] = positioned("{" ~> stmt.* <~ "}" ^^ {
-    Block(_)
-  })
+  def block: Parser[Block] = positioned("{" ~> stmt.* <~ "}" ^^ { Block(_) })
 
   def assign: Parser[Assign] = positioned(expr ~ ("=" ~> expr) <~ ";" ^^ {
-    case l ~ e => Assign(l, e)
+    case l ~ e => Assign(l.asInstanceOf[LValue], e)
   })
 
-  def exprEval: Parser[ExprEval] = positioned(expr <~ ";" ^^ {
-    ExprEval(_)
-  })
+  def exprEval: Parser[ExprEval] = positioned(expr <~ ";" ^^ { ExprEval(_) })
 
-  def skip: Parser[Skip] = positioned(";" ^^^ {
-    Skip()
-  })
+  def skip: Parser[Skip] = positioned(";" ^^^ { Skip() })
 
   def simpleStmt: Parser[SimpleStmt] = assign | exprEval | skip
 
   def ifStmt: Parser[If] = positioned("if" ~> ("(" ~> expr <~ ")") ~ stmt ~ ("else" ~> stmt).? ^^ {
-    case b ~ t ~ f => If(b, t, f)
+    case b ~ t ~ f => If(b, t, f.getOrElse(Block()))
   })
 
   def whileStmt: Parser[While] = positioned("while" ~> expr ~ stmt ^^ {
@@ -155,17 +131,11 @@ class StmtParsers extends ExprParsers {
     case i ~ b ~ u ~ s => For(i, b, u, s)
   })
 
-  def breakStmt: Parser[Break] = positioned("break" ~ ";" ^^^ {
-    Break()
-  })
+  def breakStmt: Parser[Break] = positioned("break" ~ ";" ^^^ { Break() })
 
-  def returnStmt: Parser[Return] = positioned("return" ~> expr.? <~ ";" ^^ {
-    Return(_)
-  })
+  def returnStmt: Parser[Return] = positioned("return" ~> expr.? <~ ";" ^^ { Return(_) })
 
-  def printStmt: Parser[Print] = positioned("Print" ~ "(" ~> exprList <~ ")" ~ ";" ^^ {
-    Print(_)
-  })
+  def printStmt: Parser[Print] = positioned("Print" ~ "(" ~> exprList <~ ")" ~ ";" ^^ { Print(_) })
 
   def controlStmt: Parser[Stmt] = simpleStmt | ifStmt | whileStmt | forStmt | breakStmt | returnStmt | printStmt
 
@@ -173,15 +143,12 @@ class StmtParsers extends ExprParsers {
 }
 
 class TopLevelParsers extends StmtParsers {
-  private def typed: Parser[VarDef] = positioned(typ ~ id ^^ {
-    case t ~ i => VarDef(t, i)
+  def varDef: Parser[VarDef] = positioned(localVarDef <~ ';' ^^ {
+    case LocalVarDef(typeLit, id) => VarDef(typeLit, id)
   })
 
-  def varDef: Parser[VarDef] = typed <~ ';'
-
-  def methodDef: Parser[MethodDef] = positioned(("static".? ^^ {
-    _.isDefined
-  }) ~ typ ~ id ~ ("(" ~> repsep(typed, ",") <~ ")") ~ block ^^ {
+  def methodDef: Parser[MethodDef] = positioned(("static".? ^^ { _.isDefined }) ~ typ ~ id ~
+    ("(" ~> repsep(localVarDef, ",") <~ ")") ~ block ^^ {
     case b ~ t ~ f ~ ts ~ s => MethodDef(b, t, f, ts, s)
   })
 
@@ -191,9 +158,7 @@ class TopLevelParsers extends StmtParsers {
     case i ~ e ~ fs => ClassDef(i, e, fs)
   })
 
-  def topLevel: Parser[Tree] = positioned(classDef.* ^^ {
-    TopLevel(_)
-  })
+  def topLevel: Parser[Tree] = positioned(classDef.* ^^ { TopLevel(_) })
 }
 
 class Parser extends TopLevelParsers {

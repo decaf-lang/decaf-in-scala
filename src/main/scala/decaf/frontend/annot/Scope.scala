@@ -1,6 +1,6 @@
 package decaf.frontend.annot
 
-import scala.collection.mutable
+import scala.collection.{Iterable, mutable}
 
 sealed trait Scope extends Annot {
   type Item <: Symbol
@@ -9,6 +9,10 @@ sealed trait Scope extends Annot {
   protected var symbols: mutable.Map[String, Item] = new mutable.HashMap
 
   var owner: Owner = _
+
+  def values: Iterable[Item] = symbols.values
+
+  def collect[T <: Item]: List[T] = symbols.values.filter(_.isInstanceOf[T]).map(_.asInstanceOf[T]).toList
 
   def contains(key: String): Boolean = symbols.contains(key)
 
@@ -41,12 +45,12 @@ class ClassScope(val parent: Option[ClassScope] = None) extends Scope {
 }
 
 class FormalScope extends Scope {
-  type Item = VarSymbol
-  type Owner = FunSymbol
+  type Item = MemberVarSymbol
+  type Owner = MethodSymbol
 }
 
 class LocalScope extends Scope {
-  type Item = VarSymbol
+  type Item = MemberVarSymbol
 }
 
 class ScopeContext private(global: GlobalScope, private val scopes: List[Scope]) {
@@ -66,7 +70,7 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
     case None => throw new NoSuchElementException("current class symbol")
   }
 
-  def currentFun: FunSymbol = scopes.find(_.isInstanceOf[FormalScope]) match {
+  def currentFun: MethodSymbol = scopes.find(_.isInstanceOf[FormalScope]) match {
     case Some(scope) => scope.asInstanceOf[FormalScope].owner
     case None => throw new NoSuchElementException("current function symbol")
   }
@@ -92,6 +96,8 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
 
   def apply(key: String): Symbol = lookup(key).get
 
+  def containsClass(key: String): Boolean = global.contains(key)
+
   def lookupClass(key: String): Option[ClassSymbol] = global.lookup(key)
 
   def getClass(key: String): ClassSymbol = global(key)
@@ -105,7 +111,7 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
     * @param key
     * @return innermost found symbol (if any)
     */
-  def search(key: String): Option[Symbol] =
+  def findConflict(key: String): Option[Symbol] =
     if (scopes.isEmpty) global.lookup(key)
     else scopes.head match {
       case _: FormalScope | _: LocalScope => scopes.head.lookup(key) match {
@@ -114,8 +120,6 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
       }
       case _ => lookup(key)
     }
-
-  def lookupLocally(key: String): Option[Symbol] = (if (scopes.isEmpty) global else scopes.head) lookup key
 
   def declare(symbol: Symbol): Unit = {
     assert(scopes.nonEmpty)

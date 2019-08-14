@@ -1,34 +1,30 @@
+package decaf.frontend.typecheck
+
 import decaf.error._
 import decaf.frontend.annot.ScopedImplicit._
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
-import decaf.frontend.tree.ResolvedTree._
-import decaf.frontend.tree.SyntaxTree.{ClassDef => _, MethodDef => _, Tree => _, VarDef => _, _}
+import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
-import decaf.frontend.tree.TypedTree.TypeVar
-import decaf.frontend.tree.{SyntaxTree, TypedTree => Typed}
-import decaf.frontend.typecheck.TypeLitResolver
+import decaf.frontend.tree.{NamedTree => Named, TypedTree => Typed}
 import decaf.schedule.Phase
 
-class Typer extends Phase("typer") with TypeLitResolver {
-  type Input = Tree
-  type Output = Typed.Tree
+class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
-  override def transform(tree: Tree): Typed.Tree = {
+  override def transform(tree: Named.Tree): Typed.Tree = {
     val global = new ScopeContext(tree.scope)
     val checkedClasses = tree.classes.map {
-      case clazz@ClassDef(id, parent, fields) =>
+      case clazz @ Named.ClassDef(id, parent, fields) =>
         val symbol = clazz.symbol
         val ctx = global.open(symbol.scope)
         val checkedFields = fields.map {
-          case f: VarDef => transformVarDef(f)
-          case f@MethodDef(isStatic, returnType, id, params, body) =>
-            val symbol = f.symbol
-            val checkedParams = params.map(transformVarDef)
-            val checkedBody = checkBlock(ctx.open(symbol.scope))(body)
+          case v @ Named.VarDef(typeLit, id) => Typed.VarDef(typeLit, id)(v.symbol).setPos(v.pos)
+          case f @ Named.MethodDef(isStatic, returnType, id, params, body) =>
+            implicit val localCtx: ScopeContext = ctx.open(f.symbol.scope)
+            val checkedBody = checkStmt(body)
             // TODO check return
-            Typed.MethodDef(isStatic, returnType, id, checkedParams, checkedBody)(symbol).setPos(f.pos)
+            Typed.MethodDef(isStatic, returnType, id, params, checkedBody)(f.symbol).setPos(f.pos)
         }
         Typed.ClassDef(id, parent, checkedFields)(symbol).setPos(clazz.pos)
     }
@@ -36,131 +32,108 @@ class Typer extends Phase("typer") with TypeLitResolver {
     Typed.TopLevel(checkedClasses)(tree.scope).setPos(tree.pos)
   }
 
-  def transformVarDef(varDef: VarDef): Typed.VarDef = varDef match {
-    case VarDef(typeLit, id) => Typed.VarDef(typeLit, id)(varDef.symbol).setPos(varDef.pos)
-  }
-
-  def checkBlock(ctx: ScopeContext, insideLoop: Boolean = false)(block: SyntaxTree.Block): Typed.Block = {
-    val local = ctx.open(new LocalScope)
-    val ss = block.stmts.flatMap(check(local, insideLoop))
-    Typed.Block(ss).setPos(block.pos)
-  }
-
-  object ASS extends BinaryOp
-
-  def checkSimpleStmt(ctx: ScopeContext, insideLoop: Boolean)(stmt: SimpleStmt): Option[Typed.SimpleStmt] = {
+  def checkStmt(stmt: Stmt)(implicit insideLoop: Boolean = false, ctx: ScopeContext): Typed.Stmt = {
     val checked = stmt match {
-      case Assign(lhs, rhs) =>
-        val l = typing(ctx)(lhs)
-        val r = typing(ctx)(rhs)
-        l.typ match {
-          case NoType => None
-          case _: FunType => issue(new IncompatBinOpError(ASS, l.typ, r.typ, stmt.pos)); None
-          case t if !(r.typ sub t) => issue(new IncompatBinOpError(ASS, l.typ, r.typ, stmt.pos)); None
-          case _ => Some(Typed.Assign(l, r))
+      case varDef @ LocalVarDef(typeLit, id) =>
+        val r = ctx.findConflict(id.name) match {
+          case Some(earlier) =>
+            issue(new DeclConflictError(id.name, earlier.pos, varDef.pos))
+            None
+          case None =>
+            val typedTypeLit = typeTypeLit(typeLit)
+            typedTypeLit.typ match {
+              case NoType => None
+              case VoidType => issue(new BadVarTypeError(id.name, varDef.pos)); None
+              case t =>
+                val symbol = new LocalVarSymbol(varDef, t)
+                ctx.declare(symbol)
+                Some(Typed.LocalVarDef(typedTypeLit, id)(symbol).setPos(varDef.pos))
+            }
         }
+        r match {
+          case Some(value) => value
+          case None => Typed.Skip()
+        }
+
+      case Block(stmts) =>
+        val local = ctx.open(new LocalScope)
+        val ss = stmts.map { checkStmt(_)(insideLoop, local) }
+        Typed.Block(ss)
+
+      case Assign(lhs, rhs) =>
+        val l = typeLValue(lhs)
+        val r = typeExpr(rhs)
+        l.typ match {
+          case NoType =>
+          case _: FunType => issue(new IncompatBinOpError(ASS, l.typ, r.typ, stmt.pos))
+          case t if !(r.typ sub t) => issue(new IncompatBinOpError(ASS, l.typ, r.typ, stmt.pos))
+          case _ =>
+        }
+        Typed.Assign(l, r)
 
       case ExprEval(expr) =>
-        val e = typing(ctx)(expr)
-        e.typ match {
-          case NoType => None
-          case _ => Some(Typed.ExprEval(e))
+        val e = typeExpr(expr)
+        Typed.ExprEval(e)
+
+      case Skip() => Typed.Skip()
+
+      case If(cond, trueBranch, falseBranch) =>
+        val c = checkTestExpr(cond)
+        val t = checkStmt(trueBranch)
+        val f = checkStmt(falseBranch)
+        Typed.If(c, t, f)
+
+      case While(cond, body) =>
+        val c = checkTestExpr(cond)
+        val b = checkStmt(body)(true, ctx)
+        Typed.While(c, b)
+
+      case For(init, cond, update, body) =>
+        val i = checkStmt(init)
+        val c = checkTestExpr(cond)
+        val u = checkStmt(update)
+        val b = checkStmt(body)(true, ctx)
+        Typed.For(i, c, u, b)
+
+      case Break() =>
+        if (!insideLoop) issue(new BreakOutOfLoopError(stmt.pos))
+        Typed.Break()
+
+      case Return(expr) =>
+        val expected = ctx.currentFun.returnType
+        val e = expr.map(typeExpr)
+        val actual = e.map(_.typ).getOrElse(VoidType)
+        if (actual.noError && !(actual sub expected)) issue(new BadReturnTypeError(expected, actual, stmt.pos))
+        Typed.Return(e)
+
+      case Print(exprs) =>
+        val es = exprs.zipWithIndex.map {
+          case (expr, i) =>
+            val e = typeExpr(expr)
+            if (e.typ.noError && !e.typ.isBaseType) issue(new BadPrintArgError(i, e.typ, expr.pos))
+            e
         }
-
-      case Skip() => Some(Typed.Skip())
+        Typed.Print(es)
     }
-    checked.map(_.setPos(stmt.pos))
+    checked.setPos(stmt.pos)
   }
 
-  def check(ctx: ScopeContext, insideLoop: Boolean)(stmt: Stmt): Option[Typed.Stmt] = stmt match {
-    case block: Block => Some(checkBlock(ctx, insideLoop)(block))
-    case simple: SimpleStmt => checkSimpleStmt(ctx, insideLoop)(simple)
-    case _ =>
-      val checked = stmt match {
-        case varDef@LocalVarDef(typeLit, id) =>
-          ctx.search(id.name) match {
-            case Some(earlier) =>
-              issue(new DeclConflictError(id.name, earlier.pos, varDef.pos))
-              None
-            case None =>
-              val typedTypeLit = resolveTypeLit(typeLit, ctx)
-              typedTypeLit.typ match {
-                case NoType => None
-                case VoidType => issue(new BadVarTypeError(id.name, varDef.pos)); None
-                case t =>
-                  val symbol = new VarSymbol(varDef, t)
-                  ctx.declare(symbol)
-                  Some(Typed.LocalVarDef(typedTypeLit, id)(symbol).setPos(varDef.pos))
-              }
-          }
-
-        case If(cond, trueBranch, falseBranch) =>
-          val c = checkTestExpr(ctx)(cond)
-          for {
-            t <- check(ctx, insideLoop)(trueBranch)
-            f <- falseBranch.map(check(ctx, insideLoop))
-          } yield Typed.If(c, t, f)
-
-        case While(cond, body) =>
-          val c = checkTestExpr(ctx)(cond)
-          for {
-            b <- check(ctx, true)(body)
-          } yield Typed.While(c, b)
-
-        case For(init, cond, update, body) =>
-          for {
-            i <- checkSimpleStmt(ctx, insideLoop)(init)
-            c = checkTestExpr(ctx)(cond)
-            u <- checkSimpleStmt(ctx, insideLoop)(update)
-            b <- check(ctx, true)(body)
-          } yield Typed.For(i, c, u, b)
-
-        case Break() =>
-          if (insideLoop) Some(Typed.Break())
-          else issue(new BreakOutOfLoopError(stmt.pos));
-          None
-
-        case Return(expr) =>
-          val expected = ctx.currentFun.returnType
-          val typed = expr.map(typing(ctx))
-          val actual = typed match {
-            case Some(e) => e.typ
-            case None => VoidType
-          }
-          actual match {
-            case NoType => None
-            case _ if actual sub expected => Some(Typed.Return(typed))
-            case _ => issue(new BadReturnTypeError(expected, actual, stmt.pos)); None
-          }
-
-        case Print(exprs) =>
-          val es = exprs.zipWithIndex.flatMap {
-            case (expr, i) =>
-              val e = typing(ctx)(expr)
-              e.typ match {
-                case NoType | _: BaseType => Some(e)
-                case t => issue(new BadPrintArgError(i, t, expr.pos)); None
-              }
-          }
-          Some(Typed.Print(es))
-      }
-      checked.map(_.setPos(stmt.pos))
-  }
-
-  def checkTestExpr(ctx: ScopeContext)(expr: SyntaxTree.Expr): Typed.Expr = {
-    val e = typing(ctx)(expr)
+  def checkTestExpr(expr: Expr)(implicit ctx: ScopeContext): Typed.Expr = {
+    val e = typeExpr(expr)
     if (e.typ ne BoolType) issue(new BadTestExpr(expr.pos))
     e
   }
 
-  def typing(ctx: ScopeContext)(expr: SyntaxTree.Expr): Typed.Expr = {
-    implicit val noType: NoType.type = NoType
+  object ASS extends BinaryOp // TODO
 
+  implicit val noType = NoType
+
+  def typeExpr(expr: Expr)(implicit ctx: ScopeContext): Typed.Expr = {
     val typed = expr match {
       // Trivial cases for literals
-      case IntLit(value) => Typed.IntLit(value)(IntType)
-      case BoolLit(value) => Typed.BoolLit(value)(BoolType)
-      case StringLit(value) => Typed.StringLit(value)(StringType)
+      case IntLit(v) => Typed.IntLit(v)(IntType)
+      case BoolLit(v) => Typed.BoolLit(v)(BoolType)
+      case StringLit(v) => Typed.StringLit(v)(StringType)
       case NullLit() => Typed.NullLit()(NullType)
 
       // These are trivial, too!
@@ -169,7 +142,7 @@ class Typer extends Phase("typer") with TypeLitResolver {
 
       // Expressions. Note how we make a fair guess even when the expression doesn't type check.
       case UnaryExpr(op, operand) =>
-        val e = typing(ctx)(operand)
+        val e = typeExpr(operand)
         e.typ match {
           case NoType => Typed.UnaryExpr(op, e) // avoid nested errors
           case t =>
@@ -182,8 +155,8 @@ class Typer extends Phase("typer") with TypeLitResolver {
         }
 
       case BinaryExpr(op, lhs, rhs) =>
-        val l = typing(ctx)(lhs)
-        val r = typing(ctx)(rhs)
+        val l = typeExpr(lhs)
+        val r = typeExpr(rhs)
         (l.typ, r.typ) match {
           case (_, NoType) | (NoType, _) => Typed.BinaryExpr(op, l, r) // avoid nested errors
           case (lt, rt) =>
@@ -191,138 +164,145 @@ class Typer extends Phase("typer") with TypeLitResolver {
             Typed.BinaryExpr(op, l, r)(resultTypeOf(op)) // same as UnaryExpr case
         }
 
-      // Variable, which should be complicated since a legal variable could refer to a local var,
-      // a visible member var, and a class name.
-      case Var(id) =>
-        ctx.lookup(id.name) match {
-          case Some(symbol) =>
-            symbol match {
-              case v: VarSymbol =>
-                if (ctx.currentFun.isStatic && v.kind == MemberVar) // member vars cannot be accessed in a static method
-                  issue(new RefNonStaticError(id.name, ctx.currentFun.name, expr.pos))
-              case _ =>
-            }
-            Typed.Var(id)(symbol.typ)
-
-          case None => issue(new UndeclVarError(id.name, expr.pos)); Typed.Var(id)
-        }
-
       // Array related
       case NewArray(elemType, length) =>
-        val t = resolveTypeLit(elemType, ctx)
-        val l = typing(ctx)(length)
-        val typ = t.typ match {
-          case NoType => NoType // avoid nested errors
-          case VoidType => issue(new BadArrElementError(elemType.pos)); NoType
-          case t =>
-            if (l.typ ne IntType) issue(new BadNewArrayLength(length.pos))
-            ArrayType(t)
-        }
-        Typed.NewArray(t, l)(typ)
-
-      case IndexSel(array, index) =>
-        val a = typing(ctx)(array)
-        val i = typing(ctx)(index)
-        val typ = a.typ match {
-          case ArrayType(elemType) => if (i.typ ne IntType) issue(new SubNotIntError(expr.pos)); elemType
-          case _ => issue(new NotArrayError(array.pos)); NoType
-        }
-        Typed.IndexSel(a, i)(typ)
+        val t = typeTypeLit(elemType)
+        val l = typeExpr(length)
+        if (t.typ.isVoidType) issue(new BadArrElementError(elemType.pos))
+        if (l.typ ne IntType) issue(new BadNewArrayLength(length.pos))
+        Typed.NewArray(t, l)(ArrayType(t.typ))
 
       // Class related
       case NewClass(id) =>
-        val typ = ctx.lookupClass(id.name) match {
-          case Some(symbol) => symbol.typ
-          case None => issue(new ClassNotFoundError(id.name, expr.pos)); NoType
+        ctx.lookupClass(id) match {
+          case Some(clazz) => Typed.NewClass(clazz)(clazz.typ)
+          case None => issue(new ClassNotFoundError(id.name, expr.pos)); Typed.Ill(expr)
         }
-        Typed.NewClass(id)(typ)
 
       case This() =>
-        val typ = if (ctx.currentFun.isStatic) {
-          issue(new ThisInStaticFuncError(expr.pos))
-          NoType
-        } else ctx.currentClass.typ
-        Typed.This()(typ)
+        if (ctx.currentFun.isStatic) issue(new ThisInStaticFuncError(expr.pos))
+        Typed.This()(ctx.currentClass.typ)
 
-      case FieldSel(receiver, field) =>
-        val r = typing(ctx)(receiver)
-        val typ = r.typ match {
-          case NoType => NoType // avoid nested errors
-          case t@ClassType(c, _) if !r.isInstanceOf[TypeVar] => // make sure it's not a type var
-            ctx.getClass(c).lookup(field.name) match {
-              case Some(sym) => sym match {
-                case v: VarSymbol => // be careful that v may not be accessible, since vars are protected!
-                  if (ctx.currentClass.typ sub t) v.typ
-                  else {
-                    issue(new FieldNotAccessError(field.name, c, expr.pos))
-                    NoType
-                  }
-                case _ => sym.typ
-              }
-              case None => issue(new FieldNotFoundError(field.name, c, expr.pos)); NoType
-            }
-          case t => issue(new NotClassFieldError(field.name, t.toString, expr.pos)); NoType
-        }
-        Typed.FieldSel(r, field)(typ)
-
-      case Call(receiver, method, args) =>
-        def checkArgs(test: FunSymbol => Boolean, error: Error,
-                      receiverType: Type): (Type, List[Typed.Expr]) = {
-          receiverType match {
-            case NoType => (NoType, Nil)
-            case _: ArrayType if method.name == "length" => // special case for array.length()
-              if (args.isEmpty) (IntType, Nil)
-              else {
-                issue(new BadLengthArgError(args.length, expr.pos))
-                (NoType, Nil)
-              }
-            case ClassType(c, _) => // casual case for calling a method of class c
-              ctx.getClass(c).lookup(method.name) match {
-                case Some(sym) => sym match {
-                  case f: FunSymbol =>
-                    if (!test(f)) issue(error)
-                    if (f.arity != args.length)
-                      issue(new BadArgCountError(method.name, f.arity, args.length, expr.pos))
-                    val as = (f.typ.params zip args).zipWithIndex.map {
-                      case ((t, a), i) =>
-                        val e = typing(ctx)(a)
-                        if (e.typ.noError && !(e.typ sub t))
-                          issue(new BadArgTypeError(i, t.toString, e.typ.toString, a.pos))
-                        e
-                    }
-                    (f.returnType, as)
-                  case _ => issue(new NotClassMethodError(method.name, c, expr.pos)); (NoType, Nil)
-                }
-                case None => issue(new FieldNotFoundError(method.name, c, expr.pos)); (NoType, Nil)
-              }
-            case t => issue(new NotClassFieldError(method.name, t.toString, expr.pos)); (NoType, Nil)
+      case call @ Call(Some(VarSel(None, id)), method, args) if ctx.containsClass(id) =>
+        // special case like MyClass.foo();
+        ctx.getClass(id).lookup(method) match {
+          case Some(sym) => sym match {
+            case m: MethodSymbol =>
+              if (!m.isStatic) issue(new NotClassFieldError(method, id, expr.pos))
+              typeCall(call, None, m)
+            case _ => issue(new NotClassMethodError(method, id, expr.pos)); Typed.Ill(expr)
           }
+          case None => issue(new FieldNotFoundError(method, id, expr.pos)); Typed.Ill(expr)
         }
 
-        val typed = receiver.map(typing(ctx))
-        val (typ, as) = typed match {
-          case Some(Typed.TypeVar(_, t)) =>
-            checkArgs(_.isStatic, new NotClassFieldError(method.name, t.toString, expr.pos), t)
-          case Some(e) => checkArgs(_ => true, null, e.typ)
-          case None => checkArgs(x => if (ctx.currentFun.isStatic) x.isStatic else true,
-            new RefNonStaticError(method.name, ctx.currentFun.name, expr.pos), ctx.currentClass.typ)
+      case call @ Call(receiver, method, args) =>
+        val r = receiver.map(typeExpr)
+        val rt = r.map(_.typ).getOrElse(ctx.currentClass.typ)
+        rt match {
+          case NoType => Typed.Ill(expr)
+          case _: ArrayType if method.name == "length" => // special case for array.length()
+            assert(r.isDefined)
+            if (args.nonEmpty) issue(new BadLengthArgError(args.length, expr.pos))
+            Typed.ArrayLen(r.get)(IntType)
+          case ClassType(clazz, _) =>
+            ctx.getClass(clazz).lookup(method) match {
+              case Some(sym) => sym match {
+                case m: MethodSymbol => typeCall(call, r, m)
+                case _ => issue(new NotClassMethodError(method, clazz, expr.pos)); Typed.Ill(expr)
+              }
+              case None => issue(new FieldNotFoundError(method, clazz, expr.pos)); Typed.Ill(expr)
+            }
+          case t => issue(new NotClassFieldError(method, t.toString, expr.pos)); Typed.Ill(expr)
         }
-        Typed.Call(typed, method, as)(typ)
 
       case ClassTest(obj, clazz) =>
-        val o = typing(ctx)(obj)
+        val o = typeExpr(obj)
         if (!o.typ.isClassType) issue(new NotClassError(o.typ, expr.pos))
-        if (ctx.lookupClass(clazz.name).isEmpty) issue(new ClassNotFoundError(clazz.name, expr.pos))
-        Typed.ClassTest(o, clazz)(BoolType)
+        ctx.lookupClass(clazz) match {
+          case Some(c) => Typed.ClassTest(o, c)(BoolType)
+          case None => issue(new ClassNotFoundError(clazz.name, expr.pos)); Typed.Ill(expr)
+        }
 
       case ClassCast(obj, clazz) =>
-        val o = typing(ctx)(obj)
+        val o = typeExpr(obj)
         if (!o.typ.isClassType) issue(new NotClassError(o.typ, expr.pos))
-        val typ = ctx.lookupClass(clazz.name) match {
-          case Some(symbol) => symbol.typ
-          case None => issue(new ClassNotFoundError(clazz.name, expr.pos)); NoType
+        ctx.lookupClass(clazz) match {
+          case Some(c) => Typed.ClassTest(o, c)(c.typ)
+          case None => issue(new ClassNotFoundError(clazz.name, expr.pos)); Typed.Ill(expr)
         }
-        Typed.ClassCast(o, clazz)(typ)
+    }
+    typed.setPos(expr.pos)
+  }
+
+  def typeCall(call: Call, receiver: Option[Typed.Expr], method: MethodSymbol)
+              (implicit ctx: ScopeContext): Typed.Expr = {
+    // Cannot call this's member methods in a static method
+    if (receiver.isEmpty && ctx.currentFun.isStatic && !method.isStatic)
+      issue(new RefNonStaticError(method, ctx.currentFun, call.pos))
+
+    val args = call.args
+    if (method.arity != args.length)
+      issue(new BadArgCountError(method.name, method.arity, args.length, call.pos))
+
+    val as = (method.typ.params zip args).zipWithIndex.map {
+      case ((t, a), i) =>
+        val e = typeExpr(a)
+        if (e.typ.noError && !(e.typ sub t))
+          issue(new BadArgTypeError(i, t.toString, e.typ.toString, a.pos))
+        e
+    }
+
+    if (method.isStatic) Typed.StaticCall(method, as)(method.returnType)
+    else Typed.MemberCall(receiver.getOrElse(Typed.This()), method, as)(method.returnType)
+  }
+
+  def typeLValue(expr: LValue)(implicit ctx: ScopeContext): Typed.LValue = {
+    val typed = expr match {
+      // Variable, which should be complicated since a legal variable could refer to a local var,
+      // a visible member var, and a class name.
+      case VarSel(None, id) =>
+        ctx.lookup(id) match {
+          case Some(sym) => sym match {
+            case v: LocalVarSymbol => Typed.LocalVar(v)(v.typ)
+            case v: MemberVarSymbol =>
+              if (ctx.currentFun.isStatic) // member vars cannot be accessed in a static method
+                issue(new RefNonStaticError(name, ctx.currentFun.name, expr.pos))
+              Typed.MemberVar(Typed.This(), v)(v.typ)
+            // TODO report error: method and types are not allowed here
+            case _ => issue(new UndeclVarError(name, expr.pos)); Typed.Ill(expr)
+          }
+          case None => issue(new UndeclVarError(id, expr.pos)); Typed.Ill(expr)
+        }
+
+      case VarSel(Some(receiver), id) =>
+        val r = typeExpr(receiver)
+        r.typ match {
+          case NoType => Typed.Ill(expr)
+          case t @ ClassType(clazz, _) =>
+            ctx.getClass(clazz).lookup(id) match {
+              case Some(sym) => sym match {
+                case v: MemberVarSymbol =>
+                  if (!(ctx.currentClass.typ sub t)) // member vars are protected
+                    issue(new FieldNotAccessError(id, clazz, expr.pos))
+                  Typed.MemberVar(r, v)(v.typ)
+                // case m: MethodSymbol => TODO report error: method and types are not allowed here
+                case _ => issue(new FieldNotFoundError(id, clazz, expr.pos)); Typed.Ill(expr)
+              }
+              case None => issue(new FieldNotFoundError(id, clazz, expr.pos)); Typed.Ill(expr)
+            }
+          case t => issue(new NotClassFieldError(id, t.toString, expr.pos)); Typed.Ill(expr)
+        }
+
+      case IndexSel(array, index) =>
+        val a = typeExpr(array)
+        val i = typeExpr(index)
+        val typ = a.typ match {
+          case ArrayType(elemType) =>
+            if (i.typ ne IntType) issue(new SubNotIntError(expr.pos))
+            elemType
+          case _ => issue(new NotArrayError(array.pos)); NoType
+        }
+        Typed.IndexSel(a, i)(typ)
     }
     typed.setPos(expr.pos)
   }
