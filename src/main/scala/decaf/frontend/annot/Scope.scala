@@ -12,7 +12,7 @@ sealed trait Scope extends Annot {
 
   def values: Iterable[Item] = symbols.values
 
-  def collect[T <: Item]: List[T] = symbols.values.filter(_.isInstanceOf[T]).map(_.asInstanceOf[T]).toList
+  def collect[T <: Item](p: Item => Option[T]): List[T] = symbols.values.flatMap(p).toList
 
   def contains(key: String): Boolean = symbols.contains(key)
 

@@ -67,8 +67,10 @@ object NullType extends BaseType {
 case class ClassType(name: String, parent: Option[ClassType] = None) extends Type {
   override def sub(that: Type): Boolean = that match {
     case NoType => true
-    case ClassType(_, None) => this eq that
-    case ClassType(_, Some(t)) => (this eq that) || (this sub t)
+    case _: ClassType => parent match {
+      case Some(base) => (this eq that) || (base sub that)
+      case None => this eq that
+    }
     case _ => false
   }
 

@@ -142,7 +142,7 @@ class StmtParsers extends ExprParsers {
 
   def printStmt: Parser[Print] = positioned("Print" ~ "(" ~> exprList <~ ")" ~ ";" ^^ { Print(_) })
 
-  def controlStmt: Parser[Stmt] = simpleStmt | ifStmt | whileStmt | forStmt | breakStmt | returnStmt | printStmt
+  def controlStmt: Parser[Stmt] = ifStmt | whileStmt | forStmt | breakStmt | returnStmt | printStmt | simpleStmt
 
   def stmt: Parser[Stmt] = localVarDef | block | controlStmt
 }

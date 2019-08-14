@@ -5,7 +5,7 @@ import decaf.frontend.annot._
 object Lib {
 
   case class Intrinsic(name: String, numArgs: Int, typ: BaseType) {
-    val label: Label = ???
+    val label: Label = Label.fresh(name)
   }
 
   implicit def __getLabel__(self: Intrinsic): Label = self.label

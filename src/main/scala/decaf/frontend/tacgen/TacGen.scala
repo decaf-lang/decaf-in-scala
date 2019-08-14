@@ -1,5 +1,6 @@
 package decaf.frontend.tacgen
 
+import decaf.driver.Phase
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
@@ -7,7 +8,6 @@ import decaf.frontend.tac.Tac._
 import decaf.frontend.tac._
 import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TypedTree._
-import decaf.driver.Phase
 
 import scala.collection.mutable
 

@@ -31,9 +31,16 @@ class ClassSymbol(override protected val tree: ClassDef, override val typ: Class
   type DefT = ClassDef
   type TypeT = ClassType
 
-  def vars: List[MemberVarSymbol] = scope.collect[MemberVarSymbol]
+  def vars: List[MemberVarSymbol] = scope.collect {
+    // TODO in future use isMemberVar
+    case s: MemberVarSymbol => Some(s)
+    case _ => None
+  }
 
-  def methods: List[MethodSymbol] = scope.collect[MethodSymbol]
+  def methods: List[MethodSymbol] = scope.collect {
+    case s: MethodSymbol => Some(s)
+    case _ => None
+  }
 
   def memberMethods: List[MethodSymbol] = methods.filterNot(_.isStatic)
 
