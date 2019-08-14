@@ -8,7 +8,7 @@ import decaf.frontend.tacgen.TacGen
 import decaf.frontend.tree.TypedTree
 import decaf.frontend.typecheck.{Namer, Typer}
 
-object Tasks {
+class Tasks(implicit val opt: Opt) {
 
   trait Task[T, U] {
     def run(in: T): Option[U]

@@ -8,7 +8,9 @@ class Temp protected(val id: Int, val size: Int) {
     case _ => false
   }
 
-  override def toString: String = "_T" + id
+  val name: String = "_T" + id
+
+  override def toString: String = name
 }
 
 object Temp {
@@ -23,7 +25,7 @@ object Temp {
 }
 
 class ConstTemp(override val id: Int, val value: Int) extends Temp(id, 4) {
-  override def toString: String = value.toString
+  override val name: String = value.toString
 }
 
 object ConstTemp {

@@ -1,6 +1,8 @@
 package decaf.frontend.tacgen
 
-import decaf.driver.Phase
+import java.io.PrintWriter
+
+import decaf.driver.{Opt, Phase}
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
@@ -38,7 +40,7 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
       ctx.label(clazz.symbol) = Label.fresh(s"_${ clazz.name }_New") // the "New" method for initialization
       clazz.symbol.methods.foreach { method => // the real methods defined in the program
         val isMain = clazz.name == "Main" && method.isMainSig
-        ctx.label(method) = Label.fresh(if (isMain) "main" else s"_$clazz.${ method.name }")
+        ctx.label(method) = Label.fresh(if (isMain) "main" else s"_${ clazz.name }.${ method.name }")
       }
     }
 
@@ -213,4 +215,9 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     }
   }
 
+  override def post(output: Program)(implicit opt: Opt): Unit = {
+    val outputFile = "output.tac" // FIXME
+    val code = output.toString
+    new PrintWriter(outputFile) { write(code); close() }
+  }
 }
