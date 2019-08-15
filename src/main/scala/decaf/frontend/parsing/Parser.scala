@@ -5,7 +5,6 @@ import java.io.Reader
 import decaf.driver.{Opt, Phase}
 import decaf.error.SyntaxError
 import decaf.frontend.printing.{IndentPrinter, PrettyTree}
-import decaf.frontend.tree.SyntaxTree
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 
@@ -115,13 +114,13 @@ class StmtParsers extends ExprParsers {
 
   def block: Parser[Block] = positioned("{" ~> stmt.* <~ "}" ^^ { Block(_) })
 
-  def assign: Parser[Assign] = positioned(expr ~ ("=" ~> expr) <~ ";" ^^ {
+  def assign: Parser[Assign] = positioned(expr ~ ("=" ~> expr) ^^ {
     case l ~ e => Assign(l.asInstanceOf[LValue], e)
   })
 
-  def exprEval: Parser[ExprEval] = positioned(expr <~ ";" ^^ { ExprEval(_) })
+  def exprEval: Parser[ExprEval] = positioned(expr ^^ { ExprEval(_) })
 
-  def skip: Parser[Skip] = positioned(";" ^^^ { Skip() })
+  def skip: Parser[Skip] = positioned("" ^^^ { Skip() })
 
   def simpleStmt: Parser[SimpleStmt] = assign | exprEval | skip
 
@@ -144,7 +143,7 @@ class StmtParsers extends ExprParsers {
 
   def printStmt: Parser[Print] = positioned("Print" ~ "(" ~> exprList <~ ")" ~ ";" ^^ { Print(_) })
 
-  def controlStmt: Parser[Stmt] = ifStmt | whileStmt | forStmt | breakStmt | returnStmt | printStmt | simpleStmt
+  def controlStmt: Parser[Stmt] = ifStmt | whileStmt | forStmt | breakStmt | returnStmt | printStmt | simpleStmt <~ ';'
 
   def stmt: Parser[Stmt] = localVarDef | block | controlStmt
 }

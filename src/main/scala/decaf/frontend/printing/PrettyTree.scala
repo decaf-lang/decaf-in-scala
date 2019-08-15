@@ -1,6 +1,7 @@
 package decaf.frontend.printing
 
 import decaf.frontend.annot.Annotated
+import decaf.frontend.parsing.StringUtil
 import decaf.frontend.tree.TreeNode.{Id, Node}
 
 object PrettyTree {
@@ -15,6 +16,7 @@ object PrettyTree {
       printer.indent()
       if (es.isEmpty) printer.writeln("<empty>") else es.foreach(prettyElement)
       printer.dedent()
+    case e: String => printer.writeln(StringUtil.quote(e))
     case e => printer.writeln(e.toString)
   }
 

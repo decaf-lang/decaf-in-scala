@@ -1,5 +1,7 @@
 package decaf.frontend.tac
 
+import decaf.frontend.parsing.StringUtil
+
 object Tac {
 
   /**
@@ -25,19 +27,7 @@ object Tac {
   }
 
   case class LoadStrConst(dst: Temp, str: String) extends Instr {
-    override def toString: String = s"$dst = ${ quote(str) }"
-  }
-
-  def quote(str: String): String = {
-    val sb = new StringBuilder
-    str.foreach {
-      case '"' => sb ++= "\\\""
-      case '\n' => sb ++= "\\n"
-      case '\t' => sb ++= "\\t"
-      case '\\' => sb ++= "\\\\"
-      case c => sb += c
-    }
-    "\"" + sb.toString + "\""
+    override def toString: String = s"$dst = ${ StringUtil.quote(str) }"
   }
 
   // Arithmetic
