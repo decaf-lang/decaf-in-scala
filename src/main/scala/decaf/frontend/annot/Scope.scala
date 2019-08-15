@@ -37,6 +37,8 @@ object ScopedImplicit {
 
 class GlobalScope extends Scope {
   type Item = ClassSymbol
+
+  override def toString: String = "<global scope>"
 }
 
 class ClassScope(val parent: Option[ClassScope] = None) extends Scope {

@@ -2,8 +2,10 @@ package decaf.frontend.parsing
 
 import java.io.Reader
 
-import decaf.driver.Phase
+import decaf.driver.{Opt, Phase}
 import decaf.error.SyntaxError
+import decaf.frontend.printing.{IndentPrinter, PrettyTree}
+import decaf.frontend.tree.SyntaxTree
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 
@@ -175,4 +177,10 @@ class Parser extends Phase[Reader, Tree]("parser") {
         println(s"${ f.next.pos }:${ f.msg }:\n${ f.next.pos.longString }")
         TopLevel(Nil)
     }
+
+  override def post(tree: Tree)(implicit opt: Opt): Unit = {
+    implicit val printer = new IndentPrinter
+    PrettyTree.pretty(tree)
+    println(printer.toString)
+  }
 }

@@ -5,7 +5,9 @@ import decaf.frontend.tree.TreeNode.Id
 
 object SyntaxTree extends TreeTmpl {
 
-  implicit object NoAnnot extends Annot
+  implicit object NoAnnot extends Annot {
+    override def toString: String = ""
+  }
 
   type No = NoAnnot.type
 

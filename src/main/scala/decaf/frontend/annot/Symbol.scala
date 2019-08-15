@@ -47,9 +47,9 @@ class ClassSymbol(override protected val tree: ClassDef, override val typ: Class
   def lookup(key: String): Option[FieldSymbol] =
     new ScopeContext(new GlobalScope).open(scope).lookup(key).map(_.asInstanceOf[FieldSymbol])
 
-  override def toString: String = s"!Class!$name!$typ"
-
   scope.owner = this
+
+  override def toString: String = "class$" + name
 }
 
 trait FieldSymbol extends Symbol
@@ -61,7 +61,7 @@ class MemberVarSymbol(override protected val tree: Var, override val typ: Type)
   type DefT = Var
   type TypeT = Type
 
-  override def toString: String = s"!Var!$name!$typ"
+  override def toString: String = "member$var$" + name
 }
 
 class MethodSymbol(override protected val tree: MethodDef, override val typ: FunType,
@@ -79,14 +79,14 @@ class MethodSymbol(override protected val tree: MethodDef, override val typ: Fun
 
   def isMainSig: Boolean = tree.isStatic && (typ eq FunType(Nil, VoidType))
 
-  override def toString: String = s"!Fun!$name!$typ"
-
   scope.owner = this
+
+  override def toString: String = "method$" + name
 }
 
 class LocalVarSymbol(override val tree: Var, override val typ: Type) extends Symbol with VarSymbol {
   type DefT = Var
   type TypeT = Type
 
-  override def toString: String = s"!Var!$name!$typ"
+  override def toString: String = "local$var$" + name
 }
