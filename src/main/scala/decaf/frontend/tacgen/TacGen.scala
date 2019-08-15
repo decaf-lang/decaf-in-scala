@@ -177,8 +177,8 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
       val l = emitExpr(lhs)
       val r = emitExpr(rhs)
       val e = op match {
-        case TreeNode.EQ if lhs.typ eq StringType => intrinsicCall(Lib.STRING_EQUAL, l, r)
-        case TreeNode.NE if lhs.typ eq StringType => intrinsicCall(Lib.STRING_EQUAL, l, r) >> emit(LNot)
+        case TreeNode.EQ if lhs.typ === StringType => intrinsicCall(Lib.STRING_EQUAL, l, r)
+        case TreeNode.NE if lhs.typ === StringType => intrinsicCall(Lib.STRING_EQUAL, l, r) >> emit(LNot)
         case _ => binary(op, l, r)
       }
       l || r || e
@@ -207,10 +207,10 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
       es.flatMap(_.seq) || load(es.head) >> loadWith(ctx.offset(method)) >> indirectCall(es.map(_.value))
 
     case ClassTest(obj, clazz) =>
-      if (obj.typ sub clazz.typ) load(1)
+      if (obj.typ <= clazz.typ) load(1)
       else emitExpr(obj) >> classTest(ctx.vtbl(clazz))
     case ClassCast(obj, clazz) => emitExpr(obj) >> { o =>
-      if (obj.typ sub clazz.typ) o
+      if (obj.typ <= clazz.typ) o
       else classCast(o, ctx.vtbl(clazz))
     }
   }

@@ -77,7 +77,7 @@ class MethodSymbol(override protected val tree: MethodDef, override val typ: Fun
 
   def isStatic: Boolean = tree.isStatic
 
-  def isMainSig: Boolean = tree.isStatic && (typ eq FunType(Nil, VoidType))
+  def isMainSig: Boolean = tree.isStatic && (typ === FunType(Nil, VoidType))
 
   scope.owner = this
 

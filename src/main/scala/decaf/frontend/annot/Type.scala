@@ -13,11 +13,11 @@ sealed trait Type extends Annot {
     *   (t1, t2, ..., tn) -> t <: (s1, s2, ..., sn) -> s if t <: s and si <: ti for every i
     * }}}
     */
-  def sub(that: Type): Boolean
+  def <=(that: Type): Boolean
 
-  def eq(that: Type): Boolean = this == that
+  def ===(that: Type): Boolean = this == that
 
-  def ne(that: Type): Boolean = !(this eq that)
+  def !==(that: Type): Boolean = !(this === that)
 
   def noError: Boolean = true
 
@@ -31,9 +31,9 @@ sealed trait Type extends Annot {
 class BaseType extends Type {
   override def isBaseType: Boolean = true
 
-  override def sub(that: Type): Boolean = that match {
+  override def <=(that: Type): Boolean = that match {
     case NoType => true
-    case _ => this eq that
+    case _ => this === that
   }
 }
 
@@ -56,7 +56,7 @@ object VoidType extends BaseType {
 }
 
 object NullType extends BaseType {
-  override def sub(that: Type): Boolean = that match {
+  override def <=(that: Type): Boolean = that match {
     case NoType | NullType | _: ClassType => true
     case _ => false
   }
@@ -65,16 +65,16 @@ object NullType extends BaseType {
 }
 
 case class ClassType(name: String, parent: Option[ClassType] = None) extends Type {
-  override def sub(that: Type): Boolean = that match {
+  override def <=(that: Type): Boolean = that match {
     case NoType => true
     case _: ClassType => parent match {
-      case Some(base) => (this eq that) || (base sub that)
-      case None => this eq that
+      case Some(base) => (this === that) || (base <= that)
+      case None => this === that
     }
     case _ => false
   }
 
-  override def eq(that: Type): Boolean = that match {
+  override def ===(that: Type): Boolean = that match {
     case ClassType(n, _) if name == n => true
     case _ => false
   }
@@ -85,13 +85,13 @@ case class ClassType(name: String, parent: Option[ClassType] = None) extends Typ
 }
 
 case class ArrayType(elemType: Type) extends Type {
-  override def sub(that: Type): Boolean = that match {
+  override def <=(that: Type): Boolean = that match {
     case NoType => true
-    case _ => this eq that
+    case _ => this === that
   }
 
-  override def eq(that: Type): Boolean = that match {
-    case ArrayType(t) => elemType eq t
+  override def ===(that: Type): Boolean = that match {
+    case ArrayType(t) => elemType === t
     case _ => false
   }
 
@@ -99,15 +99,17 @@ case class ArrayType(elemType: Type) extends Type {
 }
 
 case class FunType(params: List[Type], ret: Type) extends Type {
-  override def sub(that: Type): Boolean = that match {
+  override def <=(that: Type): Boolean = that match {
     case NoType => true
     case FunType(params2, ret2) => (params.length == params2.length) &&
-      (ret sub ret2) && (params2 zip params).forall { case (p2, p) => p2 sub p }
+      (ret <= ret2) && (params2 zip params).forall { case (p2, p) => p2 <= p }
     case _ => false
   }
 
-  override def eq(that: Type): Boolean = that match {
-    case FunType(ts, t) => (ret eq t) && params.length == ts.length && (params zip ts forall eq)
+  override def ===(that: Type): Boolean = that match {
+    case FunType(ts, t) => ret === t && params.length == ts.length && (params zip ts).forall {
+      case (t1, t2) => t1 === t2
+    }
     case _ => false
   }
 
@@ -115,7 +117,7 @@ case class FunType(params: List[Type], ret: Type) extends Type {
 }
 
 object NoType extends Type {
-  override def sub(that: Type): Boolean = true
+  override def <=(that: Type): Boolean = true
 
   override def noError: Boolean = false
 

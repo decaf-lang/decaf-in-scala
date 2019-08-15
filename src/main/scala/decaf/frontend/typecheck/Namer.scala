@@ -1,5 +1,6 @@
 package decaf.frontend.typecheck
 
+import decaf.driver.Phase
 import decaf.error._
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
@@ -7,10 +8,8 @@ import decaf.frontend.annot._
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.{NamedTree => Named}
-import decaf.driver.Phase
 
 import scala.collection.mutable
-import scala.collection.mutable.HashMap
 
 class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
 
@@ -146,7 +145,7 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
   }
 
   def resolveClasses(implicit ctx: Context): List[Named.ClassDef] = {
-    val resolved = new HashMap[String, Named.ClassDef]
+    val resolved = new mutable.HashMap[String, Named.ClassDef]
 
     def resolve(clazz: ClassDef): Unit = {
       if (!resolved.contains(clazz.name)) {
@@ -158,7 +157,7 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
             ctx.global(clazz.name)
         }
 
-        implicit val classCtx = new ScopeContext(ctx.global).open(symbol.scope)
+        implicit val classCtx: ScopeContext = new ScopeContext(ctx.global).open(symbol.scope)
         val fs = clazz.fields.flatMap(resolveField)
         resolved(clazz.name) = Named.ClassDef(clazz.id, symbol.parent, fs)(symbol).setPos(clazz.pos)
       }
@@ -186,12 +185,15 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
                 val formalCtx = ctx.open(formalScope)
                 val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
-                if (suspect.typ eq funType) { // override success
+                if (suspect.typ === funType) { // override success
                   val symbol = new MethodSymbol(m, funType, typedParams.map(_.symbol), formalScope,
                     ctx.currentClass)
                   ctx.declare(symbol)
                   Some(Named.MethodDef(isStatic, ret, id, typedParams, body)(symbol))
                 } else { // override failure
+                  println(suspect.typ)
+                  println("!=")
+                  println(funType)
                   issue(new BadOverrideError(m.name, suspect.parent.name, suspect.pos))
                   None
                 }
@@ -218,7 +220,7 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
               case retType =>
                 val formalScope = new FormalScope
                 val formalCtx: ScopeContext = ctx.open(formalScope)
-                val typedParams = params.flatMap{resolveLocalVarDef(_)(formalCtx)}
+                val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 val symbol = new MethodSymbol(m, funType, typedParams.map(_.symbol), formalScope, ctx.currentClass)
                 ctx.declare(symbol)

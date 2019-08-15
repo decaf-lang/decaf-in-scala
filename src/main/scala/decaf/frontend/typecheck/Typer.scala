@@ -67,7 +67,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         l.typ match {
           case NoType =>
           case _: FunType => issue(new IncompatBinOpError(ASS, l.typ, r.typ, stmt.pos))
-          case t if !(r.typ sub t) => issue(new IncompatBinOpError(ASS, l.typ, r.typ, stmt.pos))
+          case t if !(r.typ <= t) => issue(new IncompatBinOpError(ASS, l.typ, r.typ, stmt.pos))
           case _ =>
         }
         Typed.Assign(l, r)
@@ -104,7 +104,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         val expected = ctx.currentFun.returnType
         val e = expr.map(typeExpr)
         val actual = e.map(_.typ).getOrElse(VoidType)
-        if (actual.noError && !(actual sub expected)) issue(new BadReturnTypeError(expected, actual, stmt.pos))
+        if (actual.noError && !(actual <= expected)) issue(new BadReturnTypeError(expected, actual, stmt.pos))
         Typed.Return(e)
 
       case Print(exprs) =>
@@ -121,7 +121,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
   def checkTestExpr(expr: Expr)(implicit ctx: ScopeContext): Typed.Expr = {
     val e = typeExpr(expr)
-    if (e.typ ne BoolType) issue(new BadTestExpr(expr.pos))
+    if (e.typ !== BoolType) issue(new BadTestExpr(expr.pos))
     e
   }
 
@@ -173,7 +173,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         val t = typeTypeLit(elemType)
         val l = typeExpr(length)
         if (t.typ.isVoidType) issue(new BadArrElementError(elemType.pos))
-        if (l.typ ne IntType) issue(new BadNewArrayLength(length.pos))
+        if (l.typ !== IntType) issue(new BadNewArrayLength(length.pos))
         Typed.NewArray(t, l)(ArrayType(t.typ))
 
       // Class related
@@ -251,7 +251,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
     val as = (method.typ.params zip args).zipWithIndex.map {
       case ((t, a), i) =>
         val e = typeExpr(a)
-        if (e.typ.noError && !(e.typ sub t))
+        if (e.typ.noError && !(e.typ <= t))
           issue(new BadArgTypeError(i, t.toString, e.typ.toString, a.pos))
         e
     }
@@ -286,7 +286,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
             ctx.getClass(clazz).lookup(id) match {
               case Some(sym) => sym match {
                 case v: MemberVarSymbol =>
-                  if (!(ctx.currentClass.typ sub t)) // member vars are protected
+                  if (!(ctx.currentClass.typ <= t)) // member vars are protected
                     issue(new FieldNotAccessError(id, clazz, expr.pos))
                   Typed.MemberVar(r, v)(v.typ)
                 // case m: MethodSymbol => TODO report error: method and types are not allowed here
@@ -302,7 +302,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         val i = typeExpr(index)
         val typ = a.typ match {
           case ArrayType(elemType) =>
-            if (i.typ ne IntType) issue(new SubNotIntError(expr.pos))
+            if (i.typ !== IntType) issue(new SubNotIntError(expr.pos))
             elemType
           case _ => issue(new NotArrayError(array.pos)); NoType
         }
@@ -312,15 +312,15 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
   }
 
   def compatible(op: UnaryOp, operand: Type): Boolean = op match {
-    case NEG => operand eq IntType // if e : int, then -e : int
-    case NOT => operand eq BoolType // if e : bool, then !e : bool
+    case NEG => operand === IntType // if e : int, then -e : int
+    case NOT => operand === BoolType // if e : bool, then !e : bool
   }
 
   def compatible(op: BinaryOp, lhs: Type, rhs: Type): Boolean = op match {
-    case _: ArithOp => (lhs eq IntType) && (rhs eq IntType) // if e1, e2 : int, then e1 + e2 : int
-    case _: LogicOp => (lhs eq BoolType) && (rhs eq BoolType) // if e1, e2 : bool, then e1 && e2 : bool
-    case _: EqOp => (lhs sub rhs) || (rhs sub lhs) // if e1 : T1, e2 : T2, T1 <: T2 or T2 <: T1, then e1 == e2 : bool
-    case _: CmpOp => (lhs eq IntType) && (rhs eq IntType) // if e1, e2 : int, then e1 > e2 : bool
+    case _: ArithOp => (lhs === IntType) && (rhs === IntType) // if e1, e2 : int, then e1 + e2 : int
+    case _: LogicOp => (lhs === BoolType) && (rhs === BoolType) // if e1, e2 : bool, then e1 && e2 : bool
+    case _: EqOp => (lhs <= rhs) || (rhs <= lhs) // if e1 : T1, e2 : T2, T1 <: T2 or T2 <: T1, then e1 == e2 : bool
+    case _: CmpOp => (lhs === IntType) && (rhs === IntType) // if e1, e2 : int, then e1 > e2 : bool
   }
 
   def resultTypeOf(op: UnaryOp): Type = op match {

@@ -70,6 +70,8 @@ trait Util {
     def >(rhs: Temp): InstrBlockValued = binary(Gtr, lhs, rhs)
 
     def >=(rhs: Temp): InstrBlockValued = binary(Geq, lhs, rhs)
+
+    def or(rhs: Temp): InstrBlockValued = binary(LOr, lhs, rhs)
   }
 
   implicit def opToTac(op: TreeNode.BinaryOp): (Temp, Temp, Temp) => Instr = op match {
@@ -139,6 +141,8 @@ trait Util {
     BNeZ(cond, t) || falseBranch || Branch(exit) || Mark(t) || trueBranch || Mark(exit)
   }
 
+  def ifThen(branch: InstrBlock)(cond: Temp): InstrBlock = ifThenElse(branch, Nil)(cond)
+
   def loop(cond: InstrBlockValued, exit: Label = Label.fresh())(body: InstrBlock): InstrBlock = {
     val enter = Label.fresh()
     Mark(enter) || cond >| ifFalseGoto(exit) || Branch(enter) || Mark(exit)
@@ -177,7 +181,27 @@ trait Util {
     zero || word || checkLength || size || obj || init returns obj.value
   }
 
-  def arrayElemRef(array: Temp, index: Temp): InstrBlockValued = load(WORD_SIZE) >> (index * _) >> (_ + array)
+  /**
+    * Access array element by index.
+    * {{{
+    *   length = *(array - 4)
+    *   if (index < 0 || index >= length) {
+    *     index out of bound error
+    *   }
+    *   return (index * 4 + array)
+    * }}}
+    *
+    * @param array
+    * @param index
+    * @return the address of array index
+    */
+  def arrayElemRef(array: Temp, index: Temp): InstrBlockValued = {
+    val cond1 = load(0) >> (index < _)
+    val cond2 = load(array, -4) >> (index >= _)
+    cond1 || cond2 || (cond1.value or cond2) >| ifThen {
+     printString(RuntimeError.ARRAY_INDEX_OUT_OF_BOUND) || intrinsicCall(Lib.HALT)
+    } || load(WORD_SIZE) >> (index * _) >> (_ + array)
+  }
 
   def classTest(target: VTable)(obj: Temp): InstrBlockValued = {
     /**
@@ -220,8 +244,10 @@ trait Util {
     val test = targetVp || vp || Mark(loop) || Equ(ret, vp, targetVp) || BNeZ(ret, exit) || Load(vp, vp, 0) ||
       BNeZ(vp, loop)
 
-    val error = printString(RuntimeError.CLASS_CAST_ERROR1) || load(obj, 4) >> printString ||
-      printString(RuntimeError.CLASS_CAST_ERROR2) || load(targetVp, 4) >> printString ||
+    val error = printString(RuntimeError.CLASS_CAST_ERROR1) ||
+      load(obj) >> { load(_, 4) } >> printString ||
+      printString(RuntimeError.CLASS_CAST_ERROR2) ||
+      load(targetVp, 4) >> printString ||
       printString(RuntimeError.CLASS_CAST_ERROR3) || intrinsicCall(Lib.HALT)
 
     test || error || Mark(exit) returns obj
