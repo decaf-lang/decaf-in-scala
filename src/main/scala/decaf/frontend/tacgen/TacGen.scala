@@ -30,12 +30,7 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     val classes = tree.classes
     implicit val ctx = new GlobalContext
 
-    // Generate vtables and assign offsets to every member method
-    classes.foreach { clazz => genVTableAndOffsets(clazz.symbol) }
-
-    // Before we emit tac for every method, we have to allocate labels for every method. To be concise, only static
-    // methods can be called directly, i.e. by label. However, simply traverse every method including member methods
-    // is straightforward.
+    // Generate labels for every method
     classes.foreach { clazz =>
       ctx.label(clazz.symbol) = Label.fresh(s"_${ clazz.name }_New") // the "New" method for initialization
       clazz.symbol.methods.foreach { method => // the real methods defined in the program
@@ -43,6 +38,9 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
         ctx.label(method) = Label.fresh(if (isMain) "main" else s"_${ clazz.name }.${ method.name }")
       }
     }
+
+    // Generate vtables and assign offsets to every member method
+    classes.foreach { clazz => genVTableAndOffsets(clazz.symbol) }
 
     // Generate the default static "New" method for every class
     val procs1 = classes.map { clazz => genNewProc(clazz.symbol) }
@@ -60,9 +58,9 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     if (!ctx.vtbl.contains(clazz)) {
       val parent = clazz.parent.map { base => genVTableAndOffsets(base); ctx.vtbl(base) }
       val entries = clazz.memberMethods.zipWithIndex.map {
-        case (f, i) =>
-          ctx.offset(f) = 8 + 4 * i
-          Label.fresh(f.name)
+        case (m, i) =>
+          ctx.offset(m) = 8 + 4 * i
+          ctx.label(m)
       }
       ctx.vtbl(clazz) = new VTable(s"_${ clazz.name }", clazz.name, parent, entries)
 
@@ -78,9 +76,10 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     val label = ctx.label(clazz)
     val count = clazz.vars.length
     val obj = Mark(label) || load(4 + count * 4) >> { intrinsicCall(Lib.ALLOCATE, _) }
-    val init = List.tabulate(count) { i => Store(0, obj, 4 * (i + 1)) }
+    val zero = load(0)
+    val init = List.tabulate(count) { i => Store(zero, obj, 4 * (i + 1)) }
     val vtLoader = emit(LoadVTbl)(ctx.vtbl(clazz)) >| { v => Store(v, obj, 0) }
-    val code = obj || init || vtLoader || Ret(obj)
+    val code = obj || zero || init || vtLoader || Ret(obj)
     new Proc(label, Memo(), code.seq)
   }
 
@@ -90,13 +89,14 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     implicit val localCtx: Context = new Context(ctx, self)
 
     val base = (if (method.isStatic) 0 else 4) + 4
-    val memos = method.params.zipWithIndex.map {
+    val ms = method.params.zipWithIndex.map {
       case (v, i) =>
         val t = Temp.fresh
         localCtx.temp(v.symbol) = t
         val offset = base + 4 * i
         s"$t:$offset"
     }
+    val memos = if (method.isStatic) ms else s"$self:4" :: ms
     val paramMemo = Memo(memos.mkString(" "))
 
     implicit val loopExits: List[Label] = Nil

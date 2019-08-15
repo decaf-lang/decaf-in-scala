@@ -186,7 +186,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         if (ctx.currentFun.isStatic) issue(new ThisInStaticFuncError(expr.pos))
         Typed.This()(ctx.currentClass.typ)
 
-      case call @ Call(Some(VarSel(None, id)), method, args) if ctx.containsClass(id) =>
+      case call @ Call(Some(VarSel(None, id)), method, _) if ctx.containsClass(id) =>
         // special case like MyClass.foo();
         ctx.getClass(id).lookup(method) match {
           case Some(sym) => sym match {

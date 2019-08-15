@@ -164,16 +164,17 @@ trait Util {
 
   def newArray(length: Temp): InstrBlockValued = {
     val zero = load(0)
+    val word = load(WORD_SIZE)
     val checkLength = (length >= zero) >| ifFalseThen {
       printString(RuntimeError.NEGATIVE_ARR_SIZE) || intrinsicCall(Lib.HALT)
     }
 
-    val size = load(1) >> (length + _) >> (_ * WORD_SIZE)
+    val size = load(1) >> (length + _) >> (_ * word)
     val obj = intrinsicCall(Lib.ALLOCATE, size)
-    val init = Store(length, obj, 0) || Add(obj, obj, size) || Sub(obj, obj, WORD_SIZE) ||
-      loop(size.value =? zero) { Sub(obj.value, obj.value, WORD_SIZE) }
+    val init = Store(length, obj, 0) || Add(obj, obj, size) || Sub(obj, obj, word) ||
+      loop(size.value =? zero) { Sub(obj.value, obj.value, word) }
 
-    zero || checkLength || size || obj || init returns obj.value
+    zero || word || checkLength || size || obj || init returns obj.value
   }
 
   def arrayElemRef(array: Temp, index: Temp): InstrBlockValued = load(WORD_SIZE) >> (index * _) >> (_ + array)
