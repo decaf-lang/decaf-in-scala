@@ -9,6 +9,8 @@ import decaf.frontend.tree.TreeNode
 trait Util {
 
   class InstrBlock(val seq: InstrSeq = Nil) {
+    def isEmpty: Boolean = seq.isEmpty
+
     def ||(block: InstrBlockValued): InstrBlockValued = block match {
       case InstrBlockValued(next, finalValue) => InstrBlockValued(seq ++ next, finalValue)
     }
@@ -96,9 +98,45 @@ trait Util {
 
   def ifFalseGoto(label: Label)(cond: Temp): InstrBlock = BEqZ(cond, label)
 
+  /**
+    * If condition:
+    * {{{
+    *   if (cond != 0) branch pass
+    *   <body>
+    *   pass:
+    * }}}
+    *
+    * {{{
+    *   if (cond) {
+    *     <body>
+    *   }
+    * }}}
+    *
+    * @param body the body to be executed when the condition is not hold
+    * @param cond the condition
+    * @return an instruction block without return value
+    */
   def ifFalseThen(body: InstrBlock)(cond: Temp): InstrBlock = {
     val pass = Label.fresh(true)
     BNeZ(cond, pass) || body || Mark(pass)
+  }
+
+  /**
+    * {{{
+    *     if (cond != 0) branch t
+    *     <falseBranch>
+    *     branch exit
+    *   t:
+    *     <trueBranch>
+    *   exit:
+    * }}}
+    *
+    * @return
+    */
+  def ifThenElse(trueBranch: InstrBlock, falseBranch: InstrBlock)(cond: Temp): InstrBlock = {
+    val t = Label.fresh()
+    val exit = Label.fresh()
+    BNeZ(cond, t) || falseBranch || Branch(exit) || Mark(t) || trueBranch || Mark(exit)
   }
 
   def loop(cond: InstrBlockValued, exit: Label = Label.fresh())(body: InstrBlock): InstrBlock = {
@@ -145,11 +183,11 @@ trait Util {
       * targetVp = LoadVTbl(target)
       * vp = *obj
       * loop:
-      * ret = (vp =? targetVp)
-      * if (ret) goto exit
-      * vp = *vp
-      * if (vp) goto loop
-      * ret = 0 // vp == null
+      *   ret = (vp =? targetVp)
+      *   if (ret) goto exit
+      *   vp = *vp
+      *   if (vp) goto loop
+      *   ret = 0 // vp == null
       * exit: // return ret
       */
     val targetVp = emit(LoadVTbl)(target)
@@ -166,11 +204,12 @@ trait Util {
       * targetVp = LoadVTbl(target)
       * vp = *obj
       * loop:
-      * ret = (vp =? targetVp)
-      * if (ret) goto exit
-      * vp = *vp
-      * if (vp) goto loop
-      * // handle error
+      *   ret = (vp =? targetVp)
+      *   if (ret) goto exit
+      *   vp = *vp
+      *   if (vp) goto loop
+      *   // handle error
+      * exit:
       */
     val targetVp = emit(LoadVTbl)(target)
     val vp = load(obj)
@@ -183,6 +222,7 @@ trait Util {
     val error = printString(RuntimeError.CLASS_CAST_ERROR1) || load(obj, 4) >> printString ||
       printString(RuntimeError.CLASS_CAST_ERROR2) || load(targetVp, 4) >> printString ||
       printString(RuntimeError.CLASS_CAST_ERROR3) || intrinsicCall(Lib.HALT)
+
     test || error || Mark(exit) returns obj
   }
 

@@ -230,7 +230,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         val o = typeExpr(obj)
         if (!o.typ.isClassType) issue(new NotClassError(o.typ, expr.pos))
         ctx.lookupClass(clazz) match {
-          case Some(c) => Typed.ClassTest(o, c)(c.typ)
+          case Some(c) => Typed.ClassCast(o, c)(c.typ)
           case None => issue(new ClassNotFoundError(clazz.name, expr.pos)); Typed.Ill(expr)
         }
     }

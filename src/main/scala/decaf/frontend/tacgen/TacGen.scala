@@ -77,8 +77,7 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
   def genNewProc(clazz: ClassSymbol)(implicit ctx: GlobalContext): Proc = {
     val label = ctx.label(clazz)
     val count = clazz.vars.length
-    val size = 4 + count * 4
-    val obj = Mark(label) || intrinsicCall(Lib.ALLOCATE, size)
+    val obj = Mark(label) || load(4 + count * 4) >> { intrinsicCall(Lib.ALLOCATE, _) }
     val init = List.tabulate(count) { i => Store(0, obj, 4 * (i + 1)) }
     val vtLoader = emit(LoadVTbl)(ctx.vtbl(clazz)) >| { v => Store(v, obj, 0) }
     val code = obj || init || vtLoader || Ret(obj)
@@ -130,13 +129,13 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
         case MemberVar(receiver, v) =>
           val obj = emitExpr(receiver)
           obj || e || Store(e, obj, ctx.offset(v))
-        case LocalVar(v) => e || Store(e, ctx.temp(v), 0)
+        case LocalVar(v) => e || Move(ctx.temp(v), e)
       }
     case ExprEval(expr) => emitExpr(expr)
     case Skip() => Nil
 
     case If(cond, trueBranch, falseBranch) =>
-      emitExpr(cond) >| ifFalseThen { emitStmt(falseBranch) } || emitStmt(trueBranch)
+      emitExpr(cond) >| ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch))
     case While(cond, body) =>
       val exit = Label.fresh()
       loop(emitExpr(cond), exit) { emitStmt(body)(exit :: loopExits, ctx) }
@@ -218,6 +217,6 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
   override def post(output: Program)(implicit opt: Opt): Unit = {
     val outputFile = "output.tac" // FIXME
     val code = output.toString
-    new PrintWriter(outputFile) { write(code); close() }
+    new PrintWriter(outputFile) {write(code); close() }
   }
 }
