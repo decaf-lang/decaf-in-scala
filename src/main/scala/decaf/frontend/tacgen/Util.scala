@@ -74,7 +74,7 @@ trait Util {
     def or(rhs: Temp): InstrBlockValued = binary(LOr, lhs, rhs)
   }
 
-  implicit def opToTac(op: TreeNode.BinaryOp): (Temp, Temp, Temp) => Instr = op match {
+  implicit def opToTac(op: TreeNode.Op): (Temp, Temp, Temp) => Instr = op match {
     case TreeNode.ADD => Add
     case TreeNode.SUB => Sub
     case TreeNode.MUL => Mul
@@ -199,7 +199,7 @@ trait Util {
     val cond1 = load(0) >> (index < _)
     val cond2 = load(array, -4) >> (index >= _)
     cond1 || cond2 || (cond1.value or cond2) >| ifThen {
-     printString(RuntimeError.ARRAY_INDEX_OUT_OF_BOUND) || intrinsicCall(Lib.HALT)
+      printString(RuntimeError.ARRAY_INDEX_OUT_OF_BOUND) || intrinsicCall(Lib.HALT)
     } || load(WORD_SIZE) >> (index * _) >> (_ + array)
   }
 
@@ -208,11 +208,11 @@ trait Util {
       * targetVp = LoadVTbl(target)
       * vp = *obj
       * loop:
-      *   ret = (vp =? targetVp)
-      *   if (ret) goto exit
-      *   vp = *vp
-      *   if (vp) goto loop
-      *   ret = 0 // vp == null
+      * ret = (vp =? targetVp)
+      * if (ret) goto exit
+      * vp = *vp
+      * if (vp) goto loop
+      * ret = 0 // vp == null
       * exit: // return ret
       */
     val targetVp = emit(LoadVTbl)(target)
@@ -229,11 +229,11 @@ trait Util {
       * targetVp = LoadVTbl(target)
       * vp = *obj
       * loop:
-      *   ret = (vp =? targetVp)
-      *   if (ret) goto exit
-      *   vp = *vp
-      *   if (vp) goto loop
-      *   // handle error
+      * ret = (vp =? targetVp)
+      * if (ret) goto exit
+      * vp = *vp
+      * if (vp) goto loop
+      * // handle error
       * exit:
       */
     val targetVp = emit(LoadVTbl)(target)

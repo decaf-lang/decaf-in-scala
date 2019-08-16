@@ -125,7 +125,9 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
     e
   }
 
-  object ASS extends BinaryOp // TODO
+  object ASS extends BinaryOp {
+    override val str: String = "="
+  } // TODO
 
   implicit val noType = NoType
 
@@ -311,24 +313,21 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
     typed.setPos(expr.pos)
   }
 
-  def compatible(op: UnaryOp, operand: Type): Boolean = op match {
+  def compatible(op: Op, operand: Type): Boolean = op match {
     case NEG => operand === IntType // if e : int, then -e : int
     case NOT => operand === BoolType // if e : bool, then !e : bool
   }
 
-  def compatible(op: BinaryOp, lhs: Type, rhs: Type): Boolean = op match {
+  def compatible(op: Op, lhs: Type, rhs: Type): Boolean = op match {
     case _: ArithOp => (lhs === IntType) && (rhs === IntType) // if e1, e2 : int, then e1 + e2 : int
     case _: LogicOp => (lhs === BoolType) && (rhs === BoolType) // if e1, e2 : bool, then e1 && e2 : bool
     case _: EqOp => (lhs <= rhs) || (rhs <= lhs) // if e1 : T1, e2 : T2, T1 <: T2 or T2 <: T1, then e1 == e2 : bool
     case _: CmpOp => (lhs === IntType) && (rhs === IntType) // if e1, e2 : int, then e1 > e2 : bool
   }
 
-  def resultTypeOf(op: UnaryOp): Type = op match {
+  def resultTypeOf(op: Op): Type = op match {
     case NEG => IntType
     case NOT => BoolType
-  }
-
-  def resultTypeOf(op: BinaryOp): Type = op match {
     case _: ArithOp => IntType
     case _: LogicOp | _: EqOp | _: CmpOp => BoolType
   }

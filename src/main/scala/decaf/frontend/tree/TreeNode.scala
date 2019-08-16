@@ -35,7 +35,11 @@ object TreeNode {
   /**
     * Operator.
     */
-  trait Op
+  trait Op {
+    val str: String
+
+    override def toString: String = str
+  }
 
   /**
     * Unary operator.
@@ -45,12 +49,16 @@ object TreeNode {
   /**
     * Integer negation: {{{ - }}}.
     */
-  case object NEG extends UnaryOp
+  case object NEG extends UnaryOp {
+    override val str: String = "-"
+  }
 
   /**
     * Logical negation: {{{ ! }}}.
     */
-  case object NOT extends UnaryOp
+  case object NOT extends UnaryOp {
+    override val str: String = "!"
+  }
 
   trait BinaryOp extends Op
 
@@ -59,72 +67,98 @@ object TreeNode {
   /**
     * Addition: {{{ + }}}.
     */
-  case object ADD extends ArithOp
+  case object ADD extends ArithOp {
+    override val str: String = "+"
+  }
 
   /**
     * Subtraction: {{{ - }}}.
     */
-  case object SUB extends ArithOp
+  case object SUB extends ArithOp {
+    override val str: String = "-"
+  }
 
   /**
     * Multiplication: {{{ * }}}.
     */
-  case object MUL extends ArithOp
+  case object MUL extends ArithOp {
+    override val str: String = "*"
+  }
 
   /**
     * Division: {{{ / }}}.
     */
-  case object DIV extends ArithOp
+  case object DIV extends ArithOp {
+    override val str: String = "/"
+  }
 
   /**
     * Modulo: {{{ % }}}.
     */
-  case object MOD extends ArithOp
+  case object MOD extends ArithOp {
+    override val str: String = "%"
+  }
 
   trait LogicOp extends BinaryOp
 
   /**
     * Logical and: {{{ && }}}.
     */
-  case object AND extends LogicOp
+  case object AND extends LogicOp {
+    override val str: String = "&&"
+  }
 
   /**
     * Logical or: {{{ || }}}.
     */
-  case object OR extends LogicOp
+  case object OR extends LogicOp {
+    override val str: String = "||"
+  }
 
   trait EqOp extends BinaryOp
 
   /**
     * Equal to: {{{ == }}}.
     */
-  case object EQ extends EqOp
+  case object EQ extends EqOp {
+    override val str: String = "=="
+  }
 
   /**
     * Not equal to: {{{ != }}}.
     */
-  case object NE extends EqOp
+  case object NE extends EqOp {
+    override val str: String = "!="
+  }
 
   trait CmpOp extends BinaryOp
 
   /**
     * Less than: {{{ < }}}.
     */
-  case object LT extends CmpOp
+  case object LT extends CmpOp {
+    override val str: String = "<"
+  }
 
   /**
     * Less than or equal to: {{{ <= }}}.
     */
-  case object LE extends CmpOp
+  case object LE extends CmpOp {
+    override val str: String = "<="
+  }
 
   /**
     * Greater than: {{{ > }}}.
     */
-  case object GT extends CmpOp
+  case object GT extends CmpOp {
+    override val str: String = ">"
+  }
 
   /**
     * Greater than or equal to: {{{ >= }}}.
     */
-  case object GE extends CmpOp
+  case object GE extends CmpOp {
+    override val str: String = ">="
+  }
 
 }

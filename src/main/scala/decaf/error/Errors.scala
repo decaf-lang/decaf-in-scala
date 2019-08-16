@@ -1,7 +1,7 @@
 package decaf.error
 
 import decaf.frontend.annot.Type
-import decaf.frontend.tree.TreeNode.{BinaryOp, UnaryOp}
+import decaf.frontend.tree.TreeNode.Op
 
 import scala.util.parsing.input.{NoPosition, Position}
 
@@ -55,10 +55,10 @@ class BadPrintArgError(k: Int, actual: Type, pos: Position)
 class BadReturnTypeError(expected: Type, actual: Type, pos: Position)
   extends Error(s"incompatible return: $actual given, $expected expected", pos)
 
-class IncompatUnOpError(op: UnaryOp, exprType: Type, pos: Position)
+class IncompatUnOpError(op: Op, exprType: Type, pos: Position)
   extends Error(s"incompatible operand: $op $exprType", pos)
 
-class IncompatBinOpError(op: BinaryOp, lhsType: Type, rhsType: Type, pos: Position)
+class IncompatBinOpError(op: Op, lhsType: Type, rhsType: Type, pos: Position)
   extends Error(s"incompatible operands: $lhsType $op $rhsType", pos)
 
 class NotArrayError(pos: Position)

@@ -1,49 +1,59 @@
 package decaf.frontend.parsing
 
+import decaf.frontend.parsing.Tokens._
+
 import scala.util.parsing.combinator.RegexParsers
 
 class Lexer extends RegexParsers {
-  def decimal: Parser[Int] =
-    """[0-9]+""".r ^^ {
-      _.toInt
-    }
+  override protected val whiteSpace = """(\s|//.*)+""".r
 
-  def hex: Parser[Int] =
-    """0[Xx][0-9A-Fa-f]+""".r ^^ {
-      _.toInt
-    }
+  def keyword: Parser[Keyword] = KEYWORDS.map { k => positioned(k.name ^^^ k) }.reduce(_ | _)
 
-  def boolean: Parser[Boolean] = "true" ^^^ true | "false" ^^^ false
+  def intLit: Parser[INT_LIT] = positioned { (decimal | hex) ^^ INT_LIT }
 
-  private def quoted: Parser[String] = (in: Input) => {
+  def stringLit: Parser[STRING_LIT] = positioned { quotedString ^^ STRING_LIT }
+
+  def ident: Parser[IDENT] = positioned { identifier ^^ IDENT }
+
+  def tokens: Parser[Seq[Token]] = phrase(rep(intLit | stringLit | ident ^^ {
+    t =>
+      KEYWORDS.find(_.name == t.name) match {
+        case Some(tk) => tk
+        case None => t
+      }
+  } | keyword))
+
+//  def tokens: Parser[Seq[Token]] = phrase(rep(intLit | stringLit | keyword | ident))
+
+  private def decimal: Parser[Int] = """[0-9]+""".r ^^ { _.toInt }
+
+  private def hex: Parser[Int] = """0[Xx][0-9A-Fa-f]+""".r ^^ { _.toInt }
+
+  private def quotedString: Parser[String] = (in: Input) => {
     val sb = new StringBuilder
 
-    def scan(r: Input): ParseResult[String] = {
-      if (r.atEnd) Failure("string literal not closed", r)
+    @scala.annotation.tailrec
+    def continue(r: Input): ParseResult[String] = {
+      if (r.atEnd) Failure("quoted string not closed", r)
       else r.first match {
         case '"' => Success(sb.toString, r.rest)
-        case '\\' => scanQuoted(r.rest)
-        case c => sb += c; scan(r.rest)
+        case '\\' =>
+          if (r.rest.atEnd) Failure("quoted char not complete", r)
+          else r.rest.first match {
+            case '"' => sb += '"'; continue(r.rest)
+            case '\\' => sb += '\\'; continue(r.rest)
+            case 't' => sb += '\t'; continue(r.rest)
+            case 'n' => sb += '\n'; continue(r.rest)
+            case other => Failure(s"invalid quoted char: \\$other", r)
+          }
+        case c => sb += c; continue(r.rest)
       }
     }
 
-    def scanQuoted(r: Input): ParseResult[String] = {
-      if (r.atEnd) Failure("string literal not closed", r)
-      else r.first match {
-        case '"' => sb += '"'; scan(r.rest)
-        case '\\' => sb += '\\'; scan(r.rest)
-        case 't' => sb += '\t'; scan(r.rest)
-        case 'n' => sb += '\n'; scan(r.rest)
-        case other => Failure(s"invalid quoted char: \\$other", r)
-      }
-    }
-
-    scan(in)
+    if (in.atEnd) Failure("end of file", in)
+    else if (in.first == '"') continue(in.rest)
+    else Failure("quoted string must be started with a '\"'", in)
   }
 
-  def quotedString: Parser[String] = '"' ~> quoted
-
   def identifier: Parser[String] = """[A-Za-z][_0-9A-Za-z]*""".r
-
-  override protected val whiteSpace = """(\s|//.*)+""".r
 }

@@ -344,7 +344,7 @@ trait TreeTmpl extends TopLevelTmpl {
     * @param op      unary operator
     * @param operand operand
     */
-  case class UnaryExpr(op: UnaryOp, operand: Expr)(implicit val annot: ExprAnnot) extends Expr
+  case class UnaryExpr(op: Op, operand: Expr)(implicit val annot: ExprAnnot) extends Expr
 
   /**
     * Binary expression.
@@ -353,7 +353,7 @@ trait TreeTmpl extends TopLevelTmpl {
     * @param lhs left operand
     * @param rhs right operand
     */
-  case class BinaryExpr(op: BinaryOp, lhs: Expr, rhs: Expr)(implicit val annot: ExprAnnot) extends Expr
+  case class BinaryExpr(op: Op, lhs: Expr, rhs: Expr)(implicit val annot: ExprAnnot) extends Expr
 
   /**
     * IO expression for reading an integer from stdin:
