@@ -18,7 +18,7 @@ object Lib {
 
   object STRING_EQUAL extends Intrinsic("_StringEqual", 2, BoolType)
 
-  object PRINT_INT extends Intrinsic("_PrintString", 1, VoidType)
+  object PRINT_INT extends Intrinsic("_PrintInt", 1, VoidType)
 
   object PRINT_STRING extends Intrinsic("_PrintString", 1, VoidType)
 
