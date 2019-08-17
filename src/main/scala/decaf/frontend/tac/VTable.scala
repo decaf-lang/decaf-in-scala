@@ -1,7 +1,10 @@
 package decaf.frontend.tac
 
-class VTable(val name: String, val className: String, val parent: Option[VTable], val entries: List[Label]) {
+import decaf.frontend.annot.MemberVarSymbol
+
+class VTable(val name: String, val className: String, val parent: Option[VTable],
+             val memberMethods: List[Label], val memberVars: List[MemberVarSymbol]) {
   override def toString: String =
     s"VTABLE($name) {\n    ${ parent.map(_.name).getOrElse("<empty>") }\n    $className" +
-      (entries.map { l => s"\n    $l;" }.mkString) + "\n}\n"
+      (memberMethods.map { l => s"\n    $l;" }.mkString) + "\n}\n"
 }

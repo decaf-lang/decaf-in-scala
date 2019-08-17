@@ -65,7 +65,8 @@ class MemberVarSymbol(override protected val tree: Var, override val typ: Type)
 }
 
 class MethodSymbol(override protected val tree: MethodDef, override val typ: FunType,
-                   paramSymbols: List[LocalVarSymbol], val scope: FormalScope, val parent: ClassSymbol)
+                   paramSymbols: List[LocalVarSymbol], val scope: FormalScope, val parent: ClassSymbol,
+                   val overrides: Option[MethodSymbol] = None)
   extends FieldSymbol {
 
   type DefT = MethodDef

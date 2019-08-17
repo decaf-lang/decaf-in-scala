@@ -58,24 +58,42 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
   def genVTableAndOffsets(clazz: ClassSymbol)(implicit ctx: GlobalContext): Unit = {
     if (!ctx.vtbl.contains(clazz)) {
       val parent = clazz.parent.map { base => genVTableAndOffsets(base); ctx.vtbl(base) }
-      val entries = clazz.memberMethods.zipWithIndex.map {
-        case (m, i) =>
-          ctx.offset(m) = 8 + 4 * i
-          ctx.label(m)
-      }
-      ctx.vtbl(clazz) = new VTable(s"_${ clazz.name }", clazz.name, parent, entries)
+      val inheritedMethods = parent.map(_.memberMethods).getOrElse(Nil)
+      val inheritedVars = parent.map(_.memberVars).getOrElse(Nil)
 
-      val first = 4
-      clazz.vars.zipWithIndex.foreach {
-        case (v, i) =>
-          ctx.offset(v) = first + 4 * i
+      // Before we scan the actual entries defined in this class, first copy every inherited entry.
+      val methods = new mutable.ArrayBuffer[Label].addAll(inheritedMethods)
+      val vars = new mutable.ArrayBuffer[MemberVarSymbol].addAll(inheritedVars)
+
+      // For every newly defined method in this class:
+      // - If it overrides an inherited method, replace that with this one and retain the offset.
+      // - Otherwise, append it to the end of the list, and increase the offset.
+      clazz.memberMethods.foreach { m =>
+        m.overrides match {
+          case Some(base) =>
+            ctx.offset(m) = ctx.offset(base)
+            val index = ctx.offset(base) / 4 - 2
+            methods(index) = ctx.label(m)
+          case None =>
+            ctx.offset(m) = 8 + 4 * methods.length
+            methods.append(ctx.label(m))
+        }
       }
+
+      // For every newly defined var in this class:
+      // - Simply append it to the end of the list, and increase the offset.
+      clazz.vars.foreach { v =>
+        ctx.offset(v) = 4 + 4 * vars.length
+        vars.append(v)
+      }
+
+      ctx.vtbl(clazz) = new VTable(s"_${ clazz.name }", clazz.name, parent, methods.toList, vars.toList)
     }
   }
 
   def genNewProc(clazz: ClassSymbol)(implicit ctx: GlobalContext): Proc = {
     val label = ctx.label(clazz)
-    val count = clazz.vars.length
+    val count = ctx.vtbl(clazz).memberVars.length
     val obj = Mark(label) || load(4 + count * 4) >> { intrinsicCall(Lib.ALLOCATE, _) }
     val zero = load(0)
     val init = List.tabulate(count) { i => Store(zero, obj, 4 * (i + 1)) }

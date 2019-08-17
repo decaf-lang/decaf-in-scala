@@ -187,7 +187,7 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 if (suspect.typ === funType) { // override success
                   val symbol = new MethodSymbol(m, funType, typedParams.map(_.symbol), formalScope,
-                    ctx.currentClass)
+                    ctx.currentClass, Some(suspect))
                   ctx.declare(symbol)
                   Some(Named.MethodDef(isStatic, ret, id, typedParams, body)(symbol))
                 } else { // override failure
