@@ -23,7 +23,7 @@ class Lexer extends RegexParsers {
       }
   } | keyword))
 
-//  def tokens: Parser[Seq[Token]] = phrase(rep(intLit | stringLit | keyword | ident))
+  //  def tokens: Parser[Seq[Token]] = phrase(rep(intLit | stringLit | keyword | ident))
 
   private def decimal: Parser[Int] = """[0-9]+""".r ^^ { _.toInt }
 
@@ -36,14 +36,15 @@ class Lexer extends RegexParsers {
     def continue(r: Input): ParseResult[String] = {
       if (r.atEnd) Failure("quoted string not closed", r)
       else r.first match {
-        case '"' => Success(sb.toString, r.rest)
+        case '"' =>
+          Success(sb.toString, r.rest)
         case '\\' =>
           if (r.rest.atEnd) Failure("quoted char not complete", r)
           else r.rest.first match {
-            case '"' => sb += '"'; continue(r.rest)
-            case '\\' => sb += '\\'; continue(r.rest)
-            case 't' => sb += '\t'; continue(r.rest)
-            case 'n' => sb += '\n'; continue(r.rest)
+            case '"' => sb += '"'; continue(r.rest.rest)
+            case '\\' => sb += '\\'; continue(r.rest.rest)
+            case 't' => sb += '\t'; continue(r.rest.rest)
+            case 'n' => sb += '\n'; continue(r.rest.rest)
             case other => Failure(s"invalid quoted char: \\$other", r)
           }
         case c => sb += c; continue(r.rest)
