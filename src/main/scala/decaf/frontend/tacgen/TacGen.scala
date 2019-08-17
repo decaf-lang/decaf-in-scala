@@ -191,7 +191,7 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     case IndexSel(array, index) =>
       val arr = emitExpr(array)
       val idx = emitExpr(index)
-      arr || idx || arrayElemRef(arr, idx) >> loadWith(WORD_SIZE)
+      arr || idx || arrayElemRef(arr, idx) >> loadWith()
     case ArrayLen(array) => emitExpr(array) >> loadWith(-WORD_SIZE)
 
     // Class related

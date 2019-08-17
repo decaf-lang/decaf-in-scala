@@ -145,7 +145,7 @@ trait Util {
 
   def loop(cond: InstrBlockValued, exit: Label = Label.fresh())(body: InstrBlock): InstrBlock = {
     val enter = Label.fresh()
-    Mark(enter) || cond >| ifFalseGoto(exit) || Branch(enter) || Mark(exit)
+    Mark(enter) || cond >| ifFalseGoto(exit) || body || Branch(enter) || Mark(exit)
   }
 
   def directCall(fun: Label, args: List[Temp] = Nil): InstrBlockValued = {
@@ -166,19 +166,42 @@ trait Util {
 
   def printString(str: String): InstrBlockValued = load(str) >> printString
 
+  /**
+    * Initialize array, set all bytes (except the first byte, i.e. length field) as 0.
+    * {{{
+    *   if (length < 0) {
+    *     throw RuntimeError.NEGATIVE_ARR_SIZE
+    *   }
+    *
+    *   size = (length + 1) * 4
+    *   arr = ALLOCATE(size)
+    *   *(arr + 0) = length
+    *   ptr = arr + size
+    *   ptr -= 4
+    *   while (ptr != arr) {
+    *     *(ptr + 0) = 0
+    *     ptr -= 4
+    *   }
+    *   return (arr + 4)
+    * }}}
+    *
+    * @param length a temp whose value is the array length
+    * @return code with the starting address of the array (its first element)
+    */
   def newArray(length: Temp): InstrBlockValued = {
     val zero = load(0)
     val word = load(WORD_SIZE)
-    val checkLength = (length >= zero) >| ifFalseThen {
+    val checkLength = (length < zero) >| ifThen {
       printString(RuntimeError.NEGATIVE_ARR_SIZE) || intrinsicCall(Lib.HALT)
     }
 
     val size = load(1) >> (length + _) >> (_ * word)
-    val obj = intrinsicCall(Lib.ALLOCATE, size)
-    val init = Store(length, obj, 0) || Add(obj, obj, size) || Sub(obj, obj, word) ||
-      loop(size.value =? zero) { Sub(obj.value, obj.value, word) }
+    val arr = intrinsicCall(Lib.ALLOCATE, size)
+    val ptr = arr.value + size
+    val init = Store(length, arr, 0) || ptr || Sub(ptr, ptr, word) ||
+      loop(ptr.value !=? arr) { Store(zero, ptr, 0) || Sub(ptr, ptr, word) }
 
-    zero || word || checkLength || size || obj || init returns obj.value
+    zero || word || checkLength || size || arr || init || (arr.value + word)
   }
 
   /**
@@ -186,7 +209,7 @@ trait Util {
     * {{{
     *   length = *(array - 4)
     *   if (index < 0 || index >= length) {
-    *     index out of bound error
+    *     throw RuntimeError.ARRAY_INDEX_OUT_OF_BOUND
     *   }
     *   return (index * 4 + array)
     * }}}

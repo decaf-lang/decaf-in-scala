@@ -5,6 +5,7 @@ import decaf.error.SyntaxError
 import decaf.frontend.parsing.Tokens._
 import decaf.frontend.printing.{IndentPrinter, PrettyTree}
 import decaf.frontend.tree.SyntaxTree._
+import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TreeNode.{Id, Op}
 
 import scala.util.parsing.combinator.Parsers
@@ -82,6 +83,7 @@ class ExprParsers extends TypeParsers {
     case recv ~ ps => ps.foldLeft(recv) { case (e, f) => f(e) }
   })
 
+  // TODO distinguish unary and binary
   implicit def __op__(operator: Operator): Parser[Op] = __keyword__(operator) ^^^ operator.op
 
   def opUn: Parser[Op] = NEG | NOT
@@ -101,7 +103,7 @@ class ExprParsers extends TypeParsers {
 
   def expr4: Parser[Expr] = mkBinaryExprParser(opMul, expr3)
 
-  def opAdd: Parser[PosOp] = positioned { (ADD | NEG) map PosOp }
+  def opAdd: Parser[PosOp] = positioned { (ADD | NEG ^^^ TreeNode.SUB) map PosOp }
 
   def expr5: Parser[Expr] = mkBinaryExprParser(opAdd, expr4)
 
