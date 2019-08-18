@@ -1,18 +1,13 @@
 package decaf.backend.jvm
 
-import decaf.frontend.annot.{
-  ArrayType, BaseType, BoolType, ClassSymbol, ClassType, FieldSymbol, FunType, IntType,
-  JNative, MemberVarSymbol, MethodSymbol, NoType, StringType, Type, VoidType
-}
+import decaf.frontend.annot._
 import decaf.frontend.tree.TreeNode
-import decaf.frontend.tree.TreeNode.Op
 import org.objectweb.asm.{Label, MethodVisitor, Opcodes, Type => ASMType}
 
 trait Util {
   val JAVA_SUPER_INTERNAL_NAME = "java/lang/Object"
   val CONSTRUCTOR_NAME = "<init>"
   val CONSTRUCTOR_DESC = "()V"
-
 
   /**
     * {{{
@@ -102,6 +97,11 @@ trait Util {
 
   val MAIN_DESCRIPTOR: String = "([Ljava/lang/String;)V"
 
+  def loadDefaultValue(typ: Type)(implicit mv: MethodVisitor): Any = typ match {
+    case IntType | BoolType => mv.visitInsn(Opcodes.ICONST_0)
+    case _ => mv.visitInsn(Opcodes.ACONST_NULL)
+  }
+
   def loadOp(typ: Type): Int = typ match {
     case IntType | BoolType => Opcodes.ILOAD
     case _ => Opcodes.ALOAD
@@ -148,6 +148,8 @@ trait Util {
   }
 
   /**
+    * Emit bytecode for comparing two values `left` and `right` (already on stack).
+    * Procedure:
     * {{{
     *     if (left ? right) goto true
     *     push 0
@@ -156,20 +158,36 @@ trait Util {
     *     push 1
     *   exit:
     * }}}
+    *
+    * For <, <=, >, >=, the two values must both have type int.
+    * However, for == and !=, three cases need be handled separately:
+    * - Values are both integers or booleans: compare their actual value by int instructions.
+    * - Values are both strings: compare their actual value by invoking ???. // TODO
+    * - Values are both arrays/objects: compare their address by reference instructions.
     */
-  def cmpInts(op: TreeNode.EqOrCmpOp)(implicit mv: MethodVisitor): Unit = {
+  def compare(op: TreeNode.EqOrCmpOp, typ: Type)(implicit mv: MethodVisitor): Unit = {
     val trueLabel = new Label
     val exitLabel = new Label
+    val opCode = op match {
+      case TreeNode.EQ =>
+        if (typ === IntType) Opcodes.IF_ICMPEQ else Opcodes.IF_ACMPEQ
+      case TreeNode.NE =>
+        if (typ === IntType) Opcodes.IF_ICMPNE else Opcodes.IF_ACMPNE
+      case TreeNode.LE =>
+        assert(typ === IntType)
+        Opcodes.IF_ICMPLE
+      case TreeNode.LT =>
+        assert(typ === IntType)
+        Opcodes.IF_ICMPLT
+      case TreeNode.GE =>
+        assert(typ === IntType)
+        Opcodes.IF_ICMPGE
+      case TreeNode.GT =>
+        assert(typ === IntType)
+        Opcodes.IF_ICMPGT
+    }
 
-    mv.visitJumpInsn(op match {
-      case TreeNode.EQ => Opcodes.IF_ICMPEQ
-      case TreeNode.NE => Opcodes.IF_ICMPNE
-      case TreeNode.LE => Opcodes.IF_ICMPLE
-      case TreeNode.LT => Opcodes.IF_ICMPLT
-      case TreeNode.GE => Opcodes.IF_ICMPGE
-      case TreeNode.GT => Opcodes.IF_ICMPGT
-    }, trueLabel)
-
+    mv.visitJumpInsn(opCode, trueLabel)
     mv.visitInsn(Opcodes.ICONST_0)
     mv.visitJumpInsn(Opcodes.GOTO, exitLabel)
     mv.visitLabel(trueLabel)

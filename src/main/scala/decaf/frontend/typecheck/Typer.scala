@@ -8,7 +8,7 @@ import decaf.frontend.annot._
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.{NamedTree => Named, TypedTree => Typed}
-import decaf.driver.{Opt, Phase}
+import decaf.driver.{Config, Phase}
 import decaf.frontend.printing.{IndentPrinter, PrettyTree}
 
 class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
@@ -332,7 +332,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
     case _: LogicOp | _: EqOp | _: CmpOp => BoolType
   }
 
-  override def post(tree: Typed.Tree)(implicit opt: Opt): Unit = {
+  override def post(tree: Typed.Tree)(implicit opt: Config): Unit = {
     val printer = new IndentPrinter
     PrettyTree.pretty(tree)(printer, true)
     println(printer.toString)

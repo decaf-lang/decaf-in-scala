@@ -3,7 +3,7 @@ package decaf.frontend.tacgen
 import java.io.PrintWriter
 import java.nio.file.Paths
 
-import decaf.driver.{Opt, Phase}
+import decaf.driver.{Config, Phase}
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
@@ -232,7 +232,7 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     }
   }
 
-  override def post(output: Program)(implicit opt: Opt): Unit = {
+  override def post(output: Program)(implicit opt: Config): Unit = {
     // FIXME replace seems ugly
     val outputFile = Paths.get(opt.fileName).getFileName.toString.replace(".decaf", ".tac")
     val code = output.toString

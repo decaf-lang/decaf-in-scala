@@ -1,6 +1,6 @@
 package decaf.frontend.parsing
 
-import decaf.driver.{Opt, Phase}
+import decaf.driver.{Config, Phase}
 import decaf.error.SyntaxError
 import decaf.frontend.parsing.Tokens._
 import decaf.frontend.printing.{IndentPrinter, PrettyTree}
@@ -228,7 +228,7 @@ class Parser extends Phase[java.io.Reader, Tree]("parser") {
     }
   }
 
-  override def post(tree: Tree)(implicit opt: Opt): Unit = {
+  override def post(tree: Tree)(implicit opt: Config): Unit = {
     implicit val printer = new IndentPrinter
     PrettyTree.pretty(tree)
     println(printer.toString)

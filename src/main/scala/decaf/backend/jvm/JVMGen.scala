@@ -1,9 +1,10 @@
 package decaf.backend.jvm
 
-import decaf.driver.{Opt, Phase}
+import decaf.driver.{Config, Phase}
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
-import decaf.frontend.annot.{ArrayType, JNative, LocalVarSymbol, StringType}
+import decaf.frontend.annot.{ArrayType, BaseType, BoolType, ClassType, FunType, IntType, JNative, LocalVarSymbol,
+  NoType, StringType}
 import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TreeNode.{ArithOp, EqOrCmpOp}
 import decaf.frontend.tree.TypedTree._
@@ -98,9 +99,11 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
   class Context(isStatic: Boolean = true) {
     val index: LocalVars = new LocalVars
 
-    def declare(v: LocalVarSymbol): Unit = {
+    def declare(v: LocalVarSymbol): Int = {
       index(v) = next
+      val i = next
       next += 1
+      i
     }
 
     private var next: Int = if (isStatic) 0 else 1
@@ -117,7 +120,15 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
   def emitStmt(stmt: Stmt)(implicit mv: MethodVisitor, loopExits: List[Label] = Nil,
                            ctx: Context): Unit = stmt match {
     case Block(stmts) => stmts foreach emitStmt
-    case v: LocalVarDef => ctx.declare(v.symbol)
+
+    case v: LocalVarDef =>
+      // JVM will complain if a local variable is read but not initialized yet. It also seems that when the local
+      // variable is firstly initialized in a more inner scope rather than the outer most local scope, JVM reports
+      // an error. To avoid these, let's simply initialize every user-defined local variable right now.
+      val index = ctx.declare(v.symbol)
+      loadDefaultValue(v.typeLit.typ)
+      mv.visitVarInsn(storeOp(v.typeLit.typ), index)
+
     case Assign(lhs, rhs) =>
       lhs match {
         case LocalVar(v) =>
@@ -186,10 +197,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
         case op: ArithOp => mv.visitInsn(arithOp(op))
         case TreeNode.AND => mv.visitInsn(Opcodes.LAND)
         case TreeNode.OR => mv.visitInsn(Opcodes.LOR)
-
-        case TreeNode.EQ if lhs.typ === StringType => ???
-        case TreeNode.NE if lhs.typ === StringType => ???
-        case op: EqOrCmpOp => cmpInts(op)
+        case op: EqOrCmpOp => compare(op, lhs.typ)
       }
 
     // Local variables: they must be already assigned to an index
@@ -235,7 +243,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
       mv.visitTypeInsn(Opcodes.CHECKCAST, internalName(clazz))
   }
 
-  override def post(output: List[JVMClass])(implicit opt: Opt): Unit = {
+  override def post(output: List[JVMClass])(implicit opt: Config): Unit = {
     output.foreach { _.writeFile() }
   }
 }

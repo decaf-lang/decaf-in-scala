@@ -2,7 +2,7 @@ package decaf
 
 import java.io.FileReader
 
-import decaf.driver.{Opt, Tasks}
+import decaf.driver.{Config, Tasks}
 
 object Main {
   def main(args: Array[String]): Unit = {
@@ -12,7 +12,7 @@ object Main {
     }
 
     val fileName = args.head
-    implicit val opt = new Opt(fileName)
+    implicit val opt = new Config(fileName)
     val reader = new FileReader(fileName)
     val tasks = new Tasks
     //    tasks.tac.run(reader)
