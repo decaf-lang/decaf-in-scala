@@ -37,11 +37,13 @@ class BaseType extends Type {
   }
 }
 
-object IntType extends BaseType {
+trait JNative extends BaseType
+
+object IntType extends JNative {
   override def toString: String = "int"
 }
 
-object BoolType extends BaseType {
+object BoolType extends JNative {
   override def toString: String = "bool"
 }
 

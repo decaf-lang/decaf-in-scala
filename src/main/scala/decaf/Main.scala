@@ -15,6 +15,7 @@ object Main {
     implicit val opt = new Opt(fileName)
     val reader = new FileReader(fileName)
     val tasks = new Tasks
-    tasks.tac.run(reader)
+    //    tasks.tac.run(reader)
+    tasks.jvm.run(reader)
   }
 }

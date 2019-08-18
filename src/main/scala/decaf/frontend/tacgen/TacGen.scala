@@ -35,8 +35,7 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     classes.foreach { clazz =>
       ctx.label(clazz.symbol) = Label.fresh(s"_${ clazz.name }_New") // the "New" method for initialization
       clazz.symbol.methods.foreach { method => // the real methods defined in the program
-        val isMain = clazz.name == "Main" && method.isMainSig
-        ctx.label(method) = Label.fresh(if (isMain) "main" else s"_${ clazz.name }.${ method.name }")
+        ctx.label(method) = Label.fresh(if (method.isMain) "main" else s"_${ clazz.name }.${ method.name }")
       }
     }
 

@@ -82,7 +82,7 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
         clazz.symbol.scope.lookup("main") match {
           case Some(symbol) =>
             symbol match {
-              case f: MethodSymbol if f.isMainSig => // ok
+              case f: MethodSymbol if f.isStatic && (f.typ === FunType(Nil, VoidType)) => f.setMain()
               case _ => issue(NoMainClassError)
             }
           case _ => issue(NoMainClassError)
@@ -194,7 +194,7 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
                   println(suspect.typ)
                   println("!=")
                   println(funType)
-                  issue(new BadOverrideError(m.name, suspect.parent.name, suspect.pos))
+                  issue(new BadOverrideError(m.name, suspect.owner.name, suspect.pos))
                   None
                 }
             }
@@ -209,7 +209,7 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
               case VoidType => issue(new BadVarTypeError(id.name, v.pos));
                 None
               case t =>
-                val symbol = new MemberVarSymbol(v, t)
+                val symbol = new MemberVarSymbol(v, t, ctx.currentClass)
                 ctx.declare(symbol)
                 Some(Named.VarDef(lit, id)(symbol))
             }

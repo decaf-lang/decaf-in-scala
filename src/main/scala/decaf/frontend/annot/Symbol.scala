@@ -52,11 +52,13 @@ class ClassSymbol(override protected val tree: ClassDef, override val typ: Class
   override def toString: String = "class$" + name
 }
 
-trait FieldSymbol extends Symbol
+trait FieldSymbol extends Symbol {
+  val owner: ClassSymbol
+}
 
 trait VarSymbol extends Symbol
 
-class MemberVarSymbol(override protected val tree: Var, override val typ: Type)
+class MemberVarSymbol(override protected val tree: Var, override val typ: Type, val owner: ClassSymbol)
   extends FieldSymbol with VarSymbol {
   type DefT = Var
   type TypeT = Type
@@ -65,7 +67,7 @@ class MemberVarSymbol(override protected val tree: Var, override val typ: Type)
 }
 
 class MethodSymbol(override protected val tree: MethodDef, override val typ: FunType,
-                   paramSymbols: List[LocalVarSymbol], val scope: FormalScope, val parent: ClassSymbol,
+                   paramSymbols: List[LocalVarSymbol], val scope: FormalScope, val owner: ClassSymbol,
                    val overrides: Option[MethodSymbol] = None)
   extends FieldSymbol {
 
@@ -78,7 +80,11 @@ class MethodSymbol(override protected val tree: MethodDef, override val typ: Fun
 
   def isStatic: Boolean = tree.isStatic
 
-  def isMainSig: Boolean = tree.isStatic && (typ === FunType(Nil, VoidType))
+  def isMain: Boolean = _isMain
+
+  private var _isMain = false
+
+  def setMain(): Unit = _isMain = true
 
   scope.owner = this
 

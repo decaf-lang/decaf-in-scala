@@ -115,7 +115,9 @@ object TreeNode {
     override val str: String = "||"
   }
 
-  trait EqOp extends BinaryOp
+  trait EqOrCmpOp extends BinaryOp
+
+  trait EqOp extends EqOrCmpOp
 
   /**
     * Equal to: {{{ == }}}.
@@ -131,7 +133,7 @@ object TreeNode {
     override val str: String = "!="
   }
 
-  trait CmpOp extends BinaryOp
+  trait CmpOp extends EqOrCmpOp
 
   /**
     * Less than: {{{ < }}}.

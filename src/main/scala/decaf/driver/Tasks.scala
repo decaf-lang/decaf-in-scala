@@ -2,6 +2,7 @@ package decaf.driver
 
 import java.io.Reader
 
+import decaf.backend.jvm.{JVMClass, JVMGen}
 import decaf.frontend.parsing.Parser
 import decaf.frontend.tac.Tac
 import decaf.frontend.tacgen.TacGen
@@ -29,4 +30,6 @@ class Tasks(implicit val opt: Opt) {
   val typeCheck: Task[Reader, TypedTree.Tree] = parse >> new Namer >> new Typer
 
   val tac: Task[Reader, Tac.Program] = typeCheck >> new TacGen
+
+  val jvm: Task[Reader, List[JVMClass]] = typeCheck >> new JVMGen
 }
