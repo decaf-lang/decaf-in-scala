@@ -3,8 +3,7 @@ package decaf.backend.jvm
 import decaf.driver.{Config, Phase}
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
-import decaf.frontend.annot.{ArrayType, BaseType, BoolType, ClassType, FunType, IntType, JNative, LocalVarSymbol,
-  NoType, StringType}
+import decaf.frontend.annot.{ArrayType, JNative, LocalVarSymbol}
 import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TreeNode.{ArithOp, EqOrCmpOp}
 import decaf.frontend.tree.TypedTree._
@@ -39,7 +38,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     mv.visitVarInsn(Opcodes.ALOAD, 0)
     mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superClass, CONSTRUCTOR_NAME, CONSTRUCTOR_DESC, false) // call super
     mv.visitInsn(Opcodes.RETURN)
-    mv.visitMaxs(-1, -1)
+    mv.visitMaxs(-1, -1) // FIXME: blackjack, NegativeArraySizeException
     mv.visitEnd()
 
     // Then generate every user-defined member:
@@ -96,14 +95,14 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
 
   type LocalVars = mutable.HashMap[LocalVarSymbol, Int]
 
-  class Context(isStatic: Boolean = true) {
+  private class Context(isStatic: Boolean = true) {
     val index: LocalVars = new LocalVars
 
     def declare(v: LocalVarSymbol): Int = {
       index(v) = next
-      val i = next
+      val retIndex = next
       next += 1
-      i
+      retIndex
     }
 
     private var next: Int = if (isStatic) 0 else 1
@@ -117,8 +116,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     * @param loopExits exit labels for the entered loops so far, arranged from the inner most to the outer most
     * @param ctx       the current context
     */
-  def emitStmt(stmt: Stmt)(implicit mv: MethodVisitor, loopExits: List[Label] = Nil,
-                           ctx: Context): Unit = stmt match {
+  def emitStmt(stmt: Stmt)(implicit mv: MethodVisitor, loopExits: List[Label] = Nil, ctx: Context): Unit = stmt match {
     case Block(stmts) => stmts foreach emitStmt
 
     case v: LocalVarDef =>
@@ -181,8 +179,8 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     case NullLit() => mv.visitInsn(Opcodes.ACONST_NULL)
 
     // Prebuilt functions
-    case ReadInt() => ???
-    case ReadLine() => ???
+    case ReadInt() => callScanner("nextInt")
+    case ReadLine() => callScanner("nextLine")
 
     // Unary expressions
     case UnaryExpr(op, expr) =>

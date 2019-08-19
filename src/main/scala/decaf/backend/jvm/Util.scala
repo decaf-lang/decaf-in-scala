@@ -5,9 +5,9 @@ import decaf.frontend.tree.TreeNode
 import org.objectweb.asm.{Label, MethodVisitor, Opcodes, Type => ASMType}
 
 trait Util {
-  val JAVA_SUPER_INTERNAL_NAME = "java/lang/Object"
+  val JAVA_SUPER_INTERNAL_NAME = ASMType.getInternalName(classOf[java.lang.Object])
   val CONSTRUCTOR_NAME = "<init>"
-  val CONSTRUCTOR_DESC = "()V"
+  val CONSTRUCTOR_DESC = ASMType.getMethodDescriptor(ASMType.VOID_TYPE)
 
   /**
     * {{{
@@ -56,16 +56,60 @@ trait Util {
     mv.visitLabel(exit)
   }
 
+  /**
+    * Emit bytecode for calling I/O methods of java.util.Scanner, as illustrated by the following scala code:
+    * {{{
+    *   val in = new java.util.Scanner(System.in)
+    *   in.<method>()
+    * }}}
+    *
+    * @param method the member method of java.util.Scanner, i.e. `nextInt` or `nextLine`
+    * @param mv     the current method visitor
+    */
+  def callScanner(method: String)(implicit mv: MethodVisitor): Unit = {
+    val system = classOf[System]
+    val system_in = system.getDeclaredField("in").getType
+    val scanner = classOf[java.util.Scanner]
+
+    mv.visitTypeInsn(Opcodes.NEW, ASMType.getInternalName(scanner))
+    mv.visitInsn(Opcodes.DUP)
+    mv.visitFieldInsn(Opcodes.GETSTATIC, ASMType.getInternalName(system), "in",
+      ASMType.getDescriptor(system_in))
+    mv.visitMethodInsn(Opcodes.INVOKESPECIAL, ASMType.getInternalName(scanner), CONSTRUCTOR_NAME,
+      ASMType.getConstructorDescriptor(scanner.getDeclaredConstructor(system_in)), false)
+    mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, ASMType.getInternalName(scanner), method,
+      ASMType.getMethodDescriptor(scanner.getDeclaredMethod(method)), false)
+  }
+
+  /**
+    * Emit bytecode for calling System.out.print, as illustrated by the following scala code:
+    * {{{
+    *   val str = String.valueOf(arg)
+    *   System.out.print(str)
+    * }}}
+    *
+    * @param arg the bytecode which computes the value of the argument
+    * @param typ the type of the argument, should be int/bool/string
+    * @param mv  the current method visitor
+    */
   def printing(arg: => Unit, typ: Type)(implicit mv: MethodVisitor): Unit = {
-    mv.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/System", "out", "Ljava/io/PrintStream;")
+    val system = classOf[System]
+    val system_out = system.getDeclaredField("out").getType
+    val string = classOf[java.lang.String]
+
+    mv.visitFieldInsn(Opcodes.GETSTATIC, ASMType.getInternalName(system), "out", ASMType.getDescriptor(system_out))
     arg
-    val descriptor = typ match {
-      case IntType => "(I)V"
-      case BoolType => "(I)V" // TODO: print "true" or "false"
-      case StringType => "(Ljava/lang/String;)V"
+    typ match {
+      case IntType =>
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC, ASMType.getInternalName(string), "valueOf",
+          ASMType.getMethodDescriptor(string.getDeclaredMethod("valueOf", classOf[Int])), false)
+      case BoolType =>
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC, ASMType.getInternalName(string), "valueOf",
+          ASMType.getMethodDescriptor(string.getDeclaredMethod("valueOf", classOf[Boolean])), false)
+      case StringType => // nop
     }
-    mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/io/PrintStream", "print", descriptor,
-      false)
+    mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, ASMType.getInternalName(system_out), "print",
+      ASMType.getMethodDescriptor(system_out.getDeclaredMethod("print", string)), false)
   }
 
   def toASMType(typ: Type): ASMType = typ match {
