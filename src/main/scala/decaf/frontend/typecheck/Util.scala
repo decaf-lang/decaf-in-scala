@@ -1,6 +1,6 @@
 package decaf.frontend.typecheck
 
-import decaf.error.{BadArrElementError, ClassNotFoundError, DeclConflictError, ErrorIssuer, OverridingVarError}
+import decaf.error.{BadArrElementError, ClassNotFoundError, DeclConflictError, ErrorIssuer}
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
 import decaf.frontend.tree.SyntaxTree._

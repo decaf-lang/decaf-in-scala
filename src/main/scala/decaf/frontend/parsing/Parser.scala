@@ -220,12 +220,12 @@ class Parser extends Phase[java.io.Reader, Tree]("parser") {
           case parser.Success(result, _) => result
           case f: parser.NoSuccess =>
             issue(new SyntaxError(f.next.pos))
-            println(s"Parser:${ f.next.pos }:${ f.msg }:\n${ f.next.pos.longString }")
+            logger.info(s"${ f.next.pos }:${ f.msg }:\n${ f.next.pos.longString }")
             TopLevel(Nil)
         }
       case f: lexer.NoSuccess =>
         issue(new SyntaxError(f.next.pos))
-        println(s"Lexer:${ f.next.pos }:${ f.msg }:\n${ f.next.pos.longString }")
+        logger.info(s"${ f.next.pos }:${ f.msg }:\n${ f.next.pos.longString }")
         TopLevel(Nil)
     }
   }
