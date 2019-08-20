@@ -241,7 +241,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
       mv.visitTypeInsn(Opcodes.CHECKCAST, internalName(clazz))
   }
 
-  override def post(output: List[JVMClass])(implicit opt: Config): Unit = {
-    output.foreach { _.writeFile() }
+  override def post(output: List[JVMClass])(implicit config: Config): Unit = {
+    output.foreach { _.writeFile(config.outputDir.toPath) }
   }
 }

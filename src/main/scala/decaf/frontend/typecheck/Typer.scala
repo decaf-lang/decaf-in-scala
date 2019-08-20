@@ -1,15 +1,17 @@
 package decaf.frontend.typecheck
 
+import java.io.PrintWriter
+
+import decaf.driver.{Config, Phase}
 import decaf.error._
 import decaf.frontend.annot.ScopedImplicit._
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
+import decaf.frontend.printing.{IndentPrinter, PrettyTree}
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.{NamedTree => Named, TypedTree => Typed}
-import decaf.driver.{Config, Phase}
-import decaf.frontend.printing.{IndentPrinter, PrettyTree}
 
 class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
@@ -332,9 +334,15 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
     case _: LogicOp | _: EqOp | _: CmpOp => BoolType
   }
 
-  override def post(tree: Typed.Tree)(implicit opt: Config): Unit = {
-    val printer = new IndentPrinter
+  override def post(tree: Typed.Tree)(implicit config: Config): Unit = {
+    implicit val printer = new IndentPrinter
     PrettyTree.pretty(tree)(printer, true)
-    println(printer.toString)
+    if (config.needsOutput(Config.Phase.typer)) {
+      val path = config.getOutputPath(".parse.tree.txt")
+      new PrintWriter(path.toFile) {
+        write(printer.toString)
+        close()
+      }
+    }
   }
 }

@@ -8,3 +8,5 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % 
 
 // https://mvnrepository.com/artifact/org.ow2.asm/asm
 libraryDependencies += "org.ow2.asm" % "asm" % "7.2-beta"
+
+libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.0-RC2"

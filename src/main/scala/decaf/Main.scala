@@ -1,21 +1,7 @@
 package decaf
 
-import java.io.FileReader
-
-import decaf.driver.{Config, Tasks}
+import decaf.driver.Launcher
 
 object Main {
-  def main(args: Array[String]): Unit = {
-    if (args.length < 1) {
-      println("Usage: decaf.jar file")
-      return
-    }
-
-    val fileName = args.head
-    implicit val opt = new Config(fileName)
-    val reader = new FileReader(fileName)
-    val tasks = new Tasks
-    //    tasks.tac.run(reader)
-    tasks.jvm.run(reader)
-  }
+  def main(args: Array[String]): Unit = Launcher.withArgs(args)
 }

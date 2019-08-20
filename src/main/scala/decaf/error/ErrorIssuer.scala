@@ -9,5 +9,5 @@ trait ErrorIssuer {
 
   def hasError: Boolean = errors.nonEmpty
 
-  def printErrors(): Unit = errors.foreach(println)
+  def printErrors(): Unit = errors.foreach(Console.err.println)
 }
