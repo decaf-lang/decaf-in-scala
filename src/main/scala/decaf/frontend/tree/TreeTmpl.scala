@@ -147,7 +147,9 @@ trait TreeTmpl extends TopLevelTmpl {
   /**
     * Statement.
     */
-  trait Stmt extends Node
+  trait Stmt extends Node {
+    def isEmpty: Boolean = false
+  }
 
   /**
     * Local variable declaration:
@@ -174,7 +176,9 @@ trait TreeTmpl extends TopLevelTmpl {
     *   { <stmt1> <stmt2> ... }
     * }}}
     */
-  case class Block(stmts: List[Stmt] = Nil)(implicit val annot: StmtAnnot) extends ControlFlowStmt
+  case class Block(stmts: List[Stmt] = Nil)(implicit val annot: StmtAnnot) extends ControlFlowStmt {
+    override def isEmpty: Boolean = stmts.isEmpty
+  }
 
   /**
     * Simple statement.
@@ -202,7 +206,9 @@ trait TreeTmpl extends TopLevelTmpl {
   /**
     * Empty statement, do nothing.
     */
-  case class Skip()(implicit val annot: StmtAnnot) extends SimpleStmt
+  case class Skip()(implicit val annot: StmtAnnot) extends SimpleStmt {
+    override def isEmpty: Boolean = true
+  }
 
   /**
     * If statement:

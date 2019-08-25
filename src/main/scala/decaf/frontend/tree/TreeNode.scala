@@ -11,7 +11,9 @@ object TreeNode {
     *
     * @param name its name
     */
-  case class Id(name: String) extends Node
+  case class Id(name: String) extends Node {
+    override def toString: String = name
+  }
 
   implicit def __getIdName__(id: Id): String = id.name
 

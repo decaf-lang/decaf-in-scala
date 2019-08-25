@@ -1,6 +1,6 @@
 package decaf.driver
 
-import java.io.Reader
+import java.io.InputStream
 
 import decaf.backend.jvm.{JVMClass, JVMGen}
 import decaf.frontend.parsing.Parser
@@ -27,9 +27,9 @@ class Tasks(implicit val opt: Config) {
 
   val parse = TNil(new Parser)
 
-  val typeCheck: Task[Reader, TypedTree.Tree] = parse >> new Namer >> new Typer
+  val typeCheck: Task[InputStream, TypedTree.Tree] = parse >> new Namer >> new Typer
 
-  val tac: Task[Reader, Tac.Program] = typeCheck >> new TacGen
+  val tac: Task[InputStream, Tac.Program] = typeCheck >> new TacGen
 
-  val jvm: Task[Reader, List[JVMClass]] = typeCheck >> new JVMGen
+  val jvm: Task[InputStream, List[JVMClass]] = typeCheck >> new JVMGen
 }

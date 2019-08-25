@@ -242,6 +242,8 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
   }
 
   override def post(output: List[JVMClass])(implicit config: Config): Unit = {
-    output.foreach { _.writeFile(config.outputDir.toPath) }
+    if (config.target == Config.Target.jvm) {
+      output.foreach { _.writeFile(config.outputDir) }
+    }
   }
 }

@@ -232,13 +232,9 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
   }
 
   override def post(program: Program)(implicit config: Config): Unit = {
-    if (config.needsOutput(Config.Phase.tac)) {
-      val code = program.toString
-      val path = config.getOutputPath(".tac")
-      new PrintWriter(path.toFile) {
-        write(code)
-        close()
-      }
+    if (config.target == Config.Target.PA3) {
+      config.outputStream.print(program.toString)
+      config.outputStream.close()
     }
   }
 }

@@ -337,12 +337,9 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
   override def post(tree: Typed.Tree)(implicit config: Config): Unit = {
     implicit val printer = new IndentPrinter
     PrettyTree.pretty(tree)(printer, true)
-    if (config.needsOutput(Config.Phase.typer)) {
-      val path = config.getOutputPath(".parse.tree.txt")
-      new PrintWriter(path.toFile) {
-        write(printer.toString)
-        close()
-      }
+    if (config.target == Config.Target.PA2) {
+      config.outputStream.print(printer.toString)
+      config.outputStream.close()
     }
   }
 }

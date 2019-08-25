@@ -1,5 +1,7 @@
 package decaf.error
 
+import java.io.PrintStream
+
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.collection.mutable
@@ -11,10 +13,5 @@ trait ErrorIssuer extends StrictLogging {
 
   def hasError: Boolean = errors.nonEmpty
 
-  def printErrors(): Unit = {
-    errors.foreach { error =>
-      Console.err.println(error)
-      logger.info("Issued: {}", error)
-    }
-  }
+  def printErrors(to: PrintStream = System.err): Unit = errors.foreach(to.println)
 }

@@ -1,11 +1,11 @@
 package decaf.frontend.parsing
 
-import java.io.PrintWriter
+import java.io.{InputStream, InputStreamReader}
 
 import decaf.driver.{Config, Phase}
 import decaf.error.SyntaxError
 import decaf.frontend.parsing.Tokens._
-import decaf.frontend.printing.{IndentPrinter, PrettyTree}
+import decaf.frontend.printing.{IndentPrinter, PA1Tree}
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TreeNode.{Id, Op}
@@ -197,7 +197,7 @@ class TopLevelParsers extends StmtParsers {
   def topLevel: Parser[Tree] = positioned { phrase(classDef.* ^^ { TopLevel(_) }) }
 }
 
-class Parser extends Phase[java.io.Reader, Tree]("parser") {
+class Parser extends Phase[InputStream, Tree]("parser") {
   val lexer = new Lexer
   val parser = new TopLevelParsers
 
@@ -212,8 +212,9 @@ class Parser extends Phase[java.io.Reader, Tree]("parser") {
     }
   }
 
-  override def transform(in: java.io.Reader): Tree = {
-    lexer.parse(lexer.tokens, in) match {
+  override def transform(in: InputStream): Tree = {
+    val reader = new InputStreamReader(in)
+    lexer.parse(lexer.tokens, reader) match {
       case lexer.Success(tokens, _) =>
         val reader = new parser.DecafReader(tokens)
         parser.topLevel(reader) match {
@@ -232,13 +233,10 @@ class Parser extends Phase[java.io.Reader, Tree]("parser") {
 
   override def post(tree: Tree)(implicit config: Config): Unit = {
     implicit val printer = new IndentPrinter
-    PrettyTree.pretty(tree)
-    if (config.needsOutput(Config.Phase.parser)) {
-      val path = config.getOutputPath(".parse.tree.txt")
-      new PrintWriter(path.toFile) {
-        write(printer.toString)
-        close()
-      }
+    PA1Tree.pretty(tree)
+    if (config.target == Config.Target.PA1) {
+      config.outputStream.print(printer.toString)
+      config.outputStream.close()
     }
   }
 }
