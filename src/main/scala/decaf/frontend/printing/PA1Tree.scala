@@ -1,6 +1,6 @@
 package decaf.frontend.printing
 
-import decaf.frontend.parsing.StringUtil
+import decaf.parsing.StringUtil
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TreeNode.{Id, Node, Op}

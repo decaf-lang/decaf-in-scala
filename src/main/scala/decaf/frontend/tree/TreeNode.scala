@@ -1,6 +1,6 @@
 package decaf.frontend.tree
 
-import scala.util.parsing.input.Positional
+import decaf.parsing.Positional
 
 object TreeNode {
 

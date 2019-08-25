@@ -1,4 +1,4 @@
-package decaf.frontend.parsing
+package decaf.parsing
 
 object StringUtil {
   def quote(str: String): String = {

@@ -3,7 +3,7 @@ package decaf.driver
 import java.io.InputStream
 
 import decaf.backend.jvm.{JVMClass, JVMGen}
-import decaf.frontend.parsing.Parser
+import decaf.parsing.Parser
 import decaf.frontend.tac.Tac
 import decaf.frontend.tacgen.TacGen
 import decaf.frontend.tree.TypedTree

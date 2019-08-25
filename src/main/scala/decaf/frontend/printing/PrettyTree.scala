@@ -1,7 +1,7 @@
 package decaf.frontend.printing
 
 import decaf.frontend.annot.Annotated
-import decaf.frontend.parsing.StringUtil
+import decaf.parsing.StringUtil
 import decaf.frontend.tree.TreeNode.{Id, Node}
 
 object PrettyTree {

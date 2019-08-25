@@ -3,7 +3,7 @@ package decaf.error
 import decaf.frontend.annot.Type
 import decaf.frontend.tree.TreeNode.Op
 
-import scala.util.parsing.input.{NoPosition, Position}
+import decaf.parsing.{Position, NoPosition}
 
 abstract class Error(val msg: String, val pos: Position = NoPosition) {
   override def toString: String = pos match {

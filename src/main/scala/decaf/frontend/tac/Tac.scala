@@ -1,6 +1,6 @@
 package decaf.frontend.tac
 
-import decaf.frontend.parsing.StringUtil
+import decaf.parsing.StringUtil
 
 object Tac {
 

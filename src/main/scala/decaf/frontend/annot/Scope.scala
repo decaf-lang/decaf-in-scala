@@ -1,7 +1,5 @@
 package decaf.frontend.annot
 
-import decaf.error.PosImplicits._
-
 import scala.collection.mutable
 
 sealed trait Scope extends Annot {

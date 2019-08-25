@@ -14,3 +14,13 @@ libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.0-RC2"
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
 
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
+
+// antlr4
+
+enablePlugins(Antlr4Plugin)
+
+antlr4PackageName in Antlr4 := Some("decaf.parsing.antlr")
+
+antlr4GenListener in Antlr4 := false // default: true
+
+antlr4GenVisitor in Antlr4 := true // default: false

@@ -3,7 +3,7 @@ package decaf.frontend.annot
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode.{Def, Var}
 
-import scala.util.parsing.input.Positional
+import decaf.parsing.Positional
 
 sealed trait Symbol extends Annot with Positional {
   type DefT <: Def
