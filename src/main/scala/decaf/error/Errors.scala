@@ -3,39 +3,39 @@ package decaf.error
 import decaf.frontend.annot.Type
 import decaf.frontend.tree.TreeNode.Op
 
-import decaf.parsing.{Position, NoPosition}
+import decaf.parsing.{Pos, NoPos}
 
-abstract class Error(val msg: String, val pos: Position = NoPosition) {
+abstract class Error(val msg: String, val pos: Pos = NoPos) {
   override def toString: String = pos match {
-    case NoPosition => s"*** Error: $msg"
+    case NoPos => s"*** Error: $msg"
     case _ => s"*** Error at (${ pos.line },${ pos.column }): $msg"
   }
 }
 
-class SyntaxError(pos: Position)
+class SyntaxError(pos: Pos)
   extends Error("syntax error", pos)
 
 // Resolvers
 
-class BadArrElementError(pos: Position)
+class BadArrElementError(pos: Pos)
   extends Error("array element type must be non-void type", pos)
 
-class BadVarTypeError(id: String, pos: Position)
+class BadVarTypeError(id: String, pos: Pos)
   extends Error(s"cannot declare identifier '$id' as void type")
 
-class BadInheritanceError(pos: Position)
+class BadInheritanceError(pos: Pos)
   extends Error("illegal class inheritance (should be acyclic)", pos)
 
-class BadOverrideError(fun: String, parent: String, pos: Position)
+class BadOverrideError(fun: String, parent: String, pos: Pos)
   extends Error(s"overriding method '$fun' doesn't match the type signature in class '$parent'", pos)
 
-class OverridingVarError(id: String, pos: Position)
+class OverridingVarError(id: String, pos: Pos)
   extends Error(s"overriding variable is not allowed for var '$id'", pos)
 
-class ClassNotFoundError(clazz: String, pos: Position)
+class ClassNotFoundError(clazz: String, pos: Pos)
   extends Error(s"class '$clazz' not found", pos)
 
-class DeclConflictError(id: String, earlier: Position, pos: Position)
+class DeclConflictError(id: String, earlier: Pos, pos: Pos)
   extends Error(s"declaration of '$id' here conflicts with earlier declaration at " +
     s"(${ earlier.line },${ earlier.column })", pos)
 
@@ -43,62 +43,62 @@ object NoMainClassError extends Error("no legal Main class named 'Main' was foun
 
 // Typer
 
-class BreakOutOfLoopError(pos: Position)
+class BreakOutOfLoopError(pos: Pos)
   extends Error("'break' is only allowed inside a loop", pos)
 
-class BadTestExpr(pos: Position)
+class BadTestExpr(pos: Pos)
   extends Error("test expression must have bool type", pos)
 
-class BadPrintArgError(k: Int, actual: Type, pos: Position)
+class BadPrintArgError(k: Int, actual: Type, pos: Pos)
   extends Error(s"incompatible argument $k: $actual given, int/bool/string expected", pos)
 
-class BadReturnTypeError(expected: Type, actual: Type, pos: Position)
+class BadReturnTypeError(expected: Type, actual: Type, pos: Pos)
   extends Error(s"incompatible return: $actual given, $expected expected", pos)
 
-class IncompatUnOpError(op: Op, exprType: Type, pos: Position)
+class IncompatUnOpError(op: Op, exprType: Type, pos: Pos)
   extends Error(s"incompatible operand: $op $exprType", pos)
 
-class IncompatBinOpError(op: Op, lhsType: Type, rhsType: Type, pos: Position)
+class IncompatBinOpError(op: Op, lhsType: Type, rhsType: Type, pos: Pos)
   extends Error(s"incompatible operands: $lhsType $op $rhsType", pos)
 
-class NotArrayError(pos: Position)
+class NotArrayError(pos: Pos)
   extends Error("[] can only be applied to arrays", pos)
 
-class SubNotIntError(pos: Position)
+class SubNotIntError(pos: Pos)
   extends Error("array subscript must be an integer", pos)
 
-class BadNewArrayLength(pos: Position)
+class BadNewArrayLength(pos: Pos)
   extends Error("new array length must be an integer", pos)
 
-class ThisInStaticFuncError(pos: Position)
+class ThisInStaticFuncError(pos: Pos)
   extends Error("can not use this in static function", pos)
 
-class UndeclVarError(v: String, pos: Position)
+class UndeclVarError(v: String, pos: Pos)
   extends Error(s"undeclared variable '$v'", pos)
 
-class NotClassError(typ: Type, pos: Position)
+class NotClassError(typ: Type, pos: Pos)
   extends Error(s"$typ is not a class type", pos)
 
-class FieldNotFoundError(field: String, clazz: String, pos: Position)
+class FieldNotFoundError(field: String, clazz: String, pos: Pos)
   extends Error(s"field '$field' not found in '$clazz'", pos)
 
-class FieldNotAccessError(field: String, clazz: String, pos: Position)
+class FieldNotAccessError(field: String, clazz: String, pos: Pos)
   extends Error(s"field '$field' of '$clazz' not accessible here", pos)
 
-class RefNonStaticError(field: String, method: String, pos: Position)
+class RefNonStaticError(field: String, method: String, pos: Pos)
   extends Error(s"can not reference a non-static field '$field' from static method from '$method'", pos)
 
-class NotClassFieldError(field: String, typ: String, pos: Position)
+class NotClassFieldError(field: String, typ: String, pos: Pos)
   extends Error(s"cannot access field '$field' from '$typ'", pos)
 
-class NotClassMethodError(field: String, clazz: String, pos: Position)
+class NotClassMethodError(field: String, clazz: String, pos: Pos)
   extends Error(s"'$field' is not a method in class '$clazz'", pos)
 
-class BadArgCountError(method: String, expected: Int, actual: Int, pos: Position)
+class BadArgCountError(method: String, expected: Int, actual: Int, pos: Pos)
   extends Error(s"function '$method' expects $expected argument(s) but $actual given", pos)
 
-class BadArgTypeError(k: Int, expected: String, actual: String, pos: Position)
+class BadArgTypeError(k: Int, expected: String, actual: String, pos: Pos)
   extends Error(s"incompatible argument $k: $actual given, $expected expected", pos)
 
-class BadLengthArgError(count: Int, pos: Position)
+class BadLengthArgError(count: Int, pos: Pos)
   extends Error(s"function 'length' expects 0 argument(s) but $count given", pos)

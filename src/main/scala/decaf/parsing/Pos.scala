@@ -11,7 +11,7 @@ package decaf.parsing
   * @author Martin Odersky
   * @author Adriaan Moors
   */
-trait Position extends Ordered[Position] {
+trait Pos extends Ordered[Pos] {
 
   /** The line number referred to by the position; line numbers start at 1. */
   def line: Int
@@ -46,7 +46,7 @@ trait Position extends Ordered[Position] {
     * @return true if this position's line number or (in case of equal line numbers)
     *         column is smaller than the corresponding components of `that`
     */
-  override def compare(that: Position): Int =
+  override def compare(that: Pos): Int =
     if (this.line == that.line && this.column == that.column) 0
     else if (this.line < that.line || this.line == that.line && this.column < that.column) -1
     else 1
@@ -57,7 +57,7 @@ trait Position extends Ordered[Position] {
   * @author Martin Odersky
   * @author Adriaan Moors
   */
-object NoPosition extends Position {
+object NoPos extends Pos {
   def line = 0
 
   def column = 0
@@ -72,14 +72,14 @@ object NoPosition extends Position {
 trait Positional {
 
   /** The source position of this object, initially set to undefined. */
-  var pos: Position = NoPosition
+  var pos: Pos = NoPos
 
   /** If current source position is undefined, update it with given position `newpos`
     *
     * @return the object itself
     */
-  def setPos(newpos: Position): this.type = {
-    if (pos eq NoPosition) pos = newpos
+  def setPos(newpos: Pos): this.type = {
+    if (pos eq NoPos) pos = newpos
     this
   }
 }

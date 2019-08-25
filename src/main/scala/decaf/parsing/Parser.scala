@@ -25,7 +25,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       return TopLevelVisitor.visit(parser.topLevel)
     } catch {
       case ex: RecognitionException =>
-        val pos = new Position {
+        val pos = new Pos {
           override def line: Int = ex.getOffendingToken.getLine
 
           override def column: Int = ex.getOffendingToken.getCharPositionInLine + 1
@@ -297,7 +297,7 @@ object IdVisitor extends DecafParserBaseVisitor[Id] with Positioned {
 }
 
 trait Positioned {
-  def positioned[T <: Positional](ctx: ParserRuleContext)(e: T): T = e.setPos(new Position {
+  def positioned[T <: Positional](ctx: ParserRuleContext)(e: T): T = e.setPos(new Pos {
     override def line: Int = ctx.getStart.getLine
 
     override def column: Int = ctx.getStart.getCharPositionInLine + 1
