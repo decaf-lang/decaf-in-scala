@@ -1,6 +1,8 @@
 package decaf.frontend.annot
 
-import scala.collection.{Iterable, mutable}
+import decaf.error.PosImplicits._
+
+import scala.collection.mutable
 
 sealed trait Scope extends Annot {
   type Item <: Symbol
@@ -10,7 +12,7 @@ sealed trait Scope extends Annot {
 
   var owner: Owner = _
 
-  def values: Iterable[Item] = symbols.values
+  def values: List[Item] = symbols.values.toList.sortBy(_.pos)
 
   def collect[T <: Item](p: Item => Option[T]): List[T] = symbols.values.flatMap(p).toList
 
@@ -37,8 +39,6 @@ object ScopedImplicit {
 
 class GlobalScope extends Scope {
   type Item = ClassSymbol
-
-  override def toString: String = "<global scope>"
 }
 
 class ClassScope(val parent: Option[ClassScope] = None) extends Scope {
@@ -49,15 +49,21 @@ class ClassScope(val parent: Option[ClassScope] = None) extends Scope {
 class FormalScope extends Scope {
   type Item = MemberVarSymbol
   type Owner = MethodSymbol
+
+  val nestedScope: LocalScope = new LocalScope
 }
 
 class LocalScope extends Scope {
   type Item = MemberVarSymbol
+
+  val nestedScopes: mutable.ArrayBuffer[LocalScope] = new mutable.ArrayBuffer[LocalScope]
 }
 
 class ScopeContext private(global: GlobalScope, private val scopes: List[Scope]) {
 
   def this(globalScope: GlobalScope) = this(globalScope, Nil)
+
+  def current: Scope = if (scopes.nonEmpty) scopes.head else global
 
   def open(scope: Scope): ScopeContext = scope match {
     case s: ClassScope => s.parent match {

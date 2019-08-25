@@ -14,6 +14,10 @@ sealed trait Symbol extends Annot with Positional {
 
   val name: String = tree.name
   pos = tree.pos
+
+  def str: String
+
+  override def toString: String = s"(${ pos.line },${ pos.column }) -> " + str
 }
 
 object SymbolizedImplicit {
@@ -49,7 +53,7 @@ class ClassSymbol(override protected val tree: ClassDef, override val typ: Class
 
   scope.owner = this
 
-  override def toString: String = "class$" + name
+  override def str: String = s"class $name" + (if (parent.isDefined) s" : ${ parent.get.name }" else "")
 }
 
 trait FieldSymbol extends Symbol {
@@ -63,7 +67,7 @@ class MemberVarSymbol(override protected val tree: Var, override val typ: Type, 
   type DefT = Var
   type TypeT = Type
 
-  override def toString: String = "member$var$" + name
+  override def str: String = s"variable $name : $typ"
 }
 
 class MethodSymbol(override protected val tree: MethodDef, override val typ: FunType,
@@ -88,12 +92,13 @@ class MethodSymbol(override protected val tree: MethodDef, override val typ: Fun
 
   scope.owner = this
 
-  override def toString: String = "method$" + name
+  override def str: String = (if (isStatic) "static " else "") + s"function $name : $typ"
 }
 
-class LocalVarSymbol(override val tree: Var, override val typ: Type) extends Symbol with VarSymbol {
+class LocalVarSymbol(override val tree: Var, override val typ: Type, val isParam: Boolean = false)
+  extends Symbol with VarSymbol {
   type DefT = Var
   type TypeT = Type
 
-  override def toString: String = "local$var$" + name
+  override def str: String = s"variable " + (if (isParam) "@" else "") + s"$name : $typ"
 }

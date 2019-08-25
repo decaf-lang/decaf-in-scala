@@ -5,7 +5,7 @@ import decaf.frontend.tree.TreeNode.Op
 
 import scala.util.parsing.input.{NoPosition, Position}
 
-abstract class Error(msg: String, pos: Position = NoPosition) {
+abstract class Error(val msg: String, val pos: Position = NoPosition) {
   override def toString: String = pos match {
     case NoPosition => s"*** Error: $msg"
     case _ => s"*** Error at (${ pos.line },${ pos.column }): $msg"

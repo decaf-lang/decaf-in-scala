@@ -32,14 +32,15 @@ trait Util extends ErrorIssuer {
     typed.setPos(typeLit.pos)
   }
 
-  def resolveLocalVarDef(v: LocalVarDef)(implicit ctx: ScopeContext): Option[Typed.LocalVarDef] = {
+  def resolveLocalVarDef(v: LocalVarDef)
+                        (implicit ctx: ScopeContext, isParam: Boolean = false): Option[Typed.LocalVarDef] = {
     val t = typeTypeLit(v.typeLit)
     ctx.findConflict(v.name) match {
       case Some(earlier) =>
         issue(new DeclConflictError(v.name, earlier.pos, v.pos))
         None
       case None =>
-        val symbol = new LocalVarSymbol(v, t.typ)
+        val symbol = new LocalVarSymbol(v, t.typ, isParam)
         ctx.declare(symbol)
         Some(Typed.LocalVarDef(t, v.id)(symbol))
     }

@@ -234,7 +234,6 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
   override def post(program: Program)(implicit config: Config): Unit = {
     if (config.target == Config.Target.PA3) {
       config.outputStream.print(program.toString)
-      config.outputStream.close()
     }
   }
 }

@@ -183,7 +183,7 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
               case retType =>
                 val formalScope = new FormalScope
                 val formalCtx = ctx.open(formalScope)
-                val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx) }
+                val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 if (suspect.typ === funType) { // override success
                   val symbol = new MethodSymbol(m, funType, typedParams.map(_.symbol), formalScope,
@@ -191,9 +191,6 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
                   ctx.declare(symbol)
                   Some(Named.MethodDef(isStatic, ret, id, typedParams, body)(symbol))
                 } else { // override failure
-                  println(suspect.typ)
-                  println("!=")
-                  println(funType)
                   issue(new BadOverrideError(m.name, suspect.owner.name, suspect.pos))
                   None
                 }

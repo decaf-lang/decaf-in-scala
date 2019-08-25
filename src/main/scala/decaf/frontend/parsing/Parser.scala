@@ -5,7 +5,7 @@ import java.io.{InputStream, InputStreamReader}
 import decaf.driver.{Config, Phase}
 import decaf.error.SyntaxError
 import decaf.frontend.parsing.Tokens._
-import decaf.frontend.printing.{IndentPrinter, PA1Tree}
+import decaf.frontend.printing.{IndentPrinter, PA1Tree, PrettyTree}
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TreeNode.{Id, Op}
@@ -233,10 +233,10 @@ class Parser extends Phase[InputStream, Tree]("parser") {
 
   override def post(tree: Tree)(implicit config: Config): Unit = {
     implicit val printer = new IndentPrinter
-    PA1Tree.pretty(tree)
+    //    PA1Tree.pretty(tree)
+    PrettyTree.pretty(tree)(printer, PrettyTree.PrettyConfig(showPos = true))
     if (config.target == Config.Target.PA1) {
       config.outputStream.print(printer.toString)
-      config.outputStream.close()
     }
   }
 }

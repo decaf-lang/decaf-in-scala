@@ -1,14 +1,12 @@
 package decaf.frontend.typecheck
 
-import java.io.PrintWriter
-
 import decaf.driver.{Config, Phase}
 import decaf.error._
 import decaf.frontend.annot.ScopedImplicit._
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
-import decaf.frontend.printing.{IndentPrinter, PrettyTree}
+import decaf.frontend.printing.{IndentPrinter, PrettyScope, PrettyTree}
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.{NamedTree => Named, TypedTree => Typed}
@@ -59,7 +57,13 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         }
 
       case Block(stmts) =>
-        val local = ctx.open(new LocalScope)
+        val scope = ctx.current match {
+          case s: FormalScope => s.nestedScope
+          case s: LocalScope =>
+            s.nestedScopes += new LocalScope
+            s.nestedScopes.last
+        }
+        val local = ctx.open(scope)
         val ss = stmts.map { checkStmt(_)(insideLoop, local) }
         Typed.Block(ss)
 
@@ -336,10 +340,9 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
   override def post(tree: Typed.Tree)(implicit config: Config): Unit = {
     implicit val printer = new IndentPrinter
-    PrettyTree.pretty(tree)(printer, true)
+    PrettyScope.pretty(tree.scope)
     if (config.target == Config.Target.PA2) {
       config.outputStream.print(printer.toString)
-      config.outputStream.close()
     }
   }
 }
