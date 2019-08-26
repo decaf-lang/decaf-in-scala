@@ -4,7 +4,7 @@ import java.io.InputStream
 
 import decaf.driver.{Config, Phase}
 import decaf.error.SyntaxError
-import decaf.frontend.printing.{IndentPrinter, PA1Tree, PrettyTree}
+import decaf.frontend.printing.{IndentPrinter, PA1Tree}
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TreeNode.Id
@@ -196,14 +196,23 @@ object ExprVisitor extends DecafParserBaseVisitor[Expr] with Positioned {
   }
 
   override def visitStringLit(ctx: DecafParser.StringLitContext): Expr = positioned(ctx) {
-    StringLit(ctx.getText)
+    // Strip the leading and trailing quotes
+    val unquoted = ctx.getText.drop(1).dropRight(1)
+    // Recover escape characters: \n, \t, \", and \\
+    val s = unquoted.replace("\\n", "\n")
+                    .replace("\\t", "\t")
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\")
+    // However, decaf seems to have no error handler for invalid escape character, like: \a
+
+    StringLit(s)
   }
 
   override def visitNullLit(ctx: DecafParser.NullLitContext): Expr = positioned(ctx) { NullLit() }
 
   override def visitThis(ctx: DecafParser.ThisContext): Expr = positioned(ctx) { This() }
 
-  override def visitParen(ctx: DecafParser.ParenContext): Expr = ctx.expr.accept(this)
+  override def visitParen(ctx: DecafParser.ParenContext): Expr = positioned(ctx) { ctx.expr.accept(this) }
 
   override def visitClassCast(ctx: DecafParser.ClassCastContext): Expr = positioned(ctx) {
     val obj = ctx.expr.accept(this)

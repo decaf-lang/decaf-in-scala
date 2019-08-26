@@ -63,16 +63,17 @@ ID:             [A-Za-z][_0-9A-Za-z]*;
 
 INT_LIT:        [0-9]+ | [0][Xx][0-9A-Fa-f]+;
 BOOL_LIT:       TRUE | FALSE;
-STRING_LIT:     '"' (~["\\\r\n] | EscapeSequence)* '"'; // TODO
 NULL_LIT:       NULL;
 
-fragment EscapeSequence
-    : '\\' [btnfr"'\\]
-    | '\\' ([0-3]? [0-7])? [0-7]
-    ;
+STRING_LIT:         '"' ~[\r\n"]* '"';
+NEWLINE_STRING_LIT: '"' ~[\r\n"]* [\r\n];
+UNTERM_STRING_LIT:  '"' ~[\r\n"]*;
 
 // Whitespace and comments
 
-NEWLINE:        ('\r' | '\n' | '\r\n') -> channel(HIDDEN);
-WHITESPACE:     [ \t]+ -> channel(HIDDEN);
+WHITESPACE:     [ \t\r\n]+ -> channel(HIDDEN);
 COMMENT:        '//' ~[\r\n]* -> channel(HIDDEN);
+
+// Error
+
+UNRECOG_Char:   .;
