@@ -22,7 +22,8 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     val parser = new DecafParser(tokens)
 
     try {
-      return TopLevelVisitor.visit(parser.topLevel)
+      val topLevel = parser.topLevel
+      return TopLevelVisitor.visit(topLevel)
     } catch {
       case ex: RecognitionException =>
         val pos = new Pos {
@@ -170,14 +171,14 @@ object SimpleStmtVisitor extends DecafParserBaseVisitor[SimpleStmt] with Positio
 
 object LValueVisitor extends DecafParserBaseVisitor[LValue] with Positioned {
   override def visitLValueVar(ctx: DecafParser.LValueVarContext): LValue = positioned(ctx) {
-    val receiver = if (ctx.expr != null) Some(ctx.expr.accept(this)) else None
+    val receiver = if (ctx.expr != null) Some(ctx.expr.accept(ExprVisitor)) else None
     val id = ctx.id.accept(IdVisitor)
     VarSel(receiver, id)
   }
 
   override def visitLValueIndex(ctx: DecafParser.LValueIndexContext): LValue = positioned(ctx) {
-    val array = ctx.array.accept(this)
-    val index = ctx.index.accept(this)
+    val array = ctx.array.accept(ExprVisitor)
+    val index = ctx.index.accept(ExprVisitor)
     IndexSel(array, index)
   }
 }
