@@ -20,7 +20,6 @@ project/plugins/project/
 
 # Tmp files
 TestCases/
-src/main/antlr4
 *.tac
 *.s
 

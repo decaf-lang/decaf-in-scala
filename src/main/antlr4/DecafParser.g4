@@ -103,11 +103,15 @@ expr
     ;
 
 lit
-    : INT_LIT           # intLit
-    | BOOL_LIT          # boolLit
-    | STRING_LIT        # stringLit
-    | NULL              # nullLit
+    : INT_LIT         # intLit
+    | BOOL_LIT        # boolLit
+    | NULL            # nullLit
+    | OPEN_STRING stringChar* (CLOSE_STRING | UNTERM_STRING)    # stringLit
     ;
+
+stringChar
+    : ERROR_NEWLINE
+    | VALID_CHAR;
 
 varSelOrCall
     : id ('(' exprList ')')?

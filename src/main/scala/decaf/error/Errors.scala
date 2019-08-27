@@ -5,17 +5,33 @@ import decaf.frontend.tree.TreeNode.Op
 
 import decaf.parsing.{Pos, NoPos}
 
-abstract class Error(val msg: String, val pos: Pos = NoPos) {
+abstract class Error(val msg: String, val pos: Pos = NoPos) extends Exception {
   override def toString: String = pos match {
     case NoPos => s"*** Error: $msg"
     case _ => s"*** Error at (${ pos.line },${ pos.column }): $msg"
   }
 }
 
-class SyntaxError(pos: Pos)
+// Lexer errors
+
+class NewlineInStrError(literal: String, pos: Pos)
+  extends Error(s"illegal newline in string constant $literal", pos)
+
+class UntermStrError(literal: String, pos: Pos)
+  extends Error(s"unterminated string constant $literal", pos)
+
+class UnrecogCharError(char: Char, pos: Pos)
+  extends Error(s"unrecognized character '$char'", pos)
+
+class IntTooLargeError(literal: String, pos: Pos)
+  extends Error(s"integer literal $literal is too large", pos)
+
+// Syntax error
+
+class SyntaxError(msg: String, pos: Pos)
   extends Error("syntax error", pos)
 
-// Resolvers
+// Namer errors
 
 class BadArrElementError(pos: Pos)
   extends Error("array element type must be non-void type", pos)
@@ -41,7 +57,7 @@ class DeclConflictError(id: String, earlier: Pos, pos: Pos)
 
 object NoMainClassError extends Error("no legal Main class named 'Main' was found")
 
-// Typer
+// Typer errors
 
 class BreakOutOfLoopError(pos: Pos)
   extends Error("'break' is only allowed inside a loop", pos)

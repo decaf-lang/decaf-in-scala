@@ -6,6 +6,7 @@ object StringUtil {
     str.foreach {
       case '"' => sb ++= "\\\""
       case '\n' => sb ++= "\\n"
+      case '\r' => sb ++= "\\r"
       case '\t' => sb ++= "\\t"
       case '\\' => sb ++= "\\\\"
       case c => sb += c
