@@ -111,7 +111,8 @@ lit
 
 stringChar
     : ERROR_NEWLINE
-    | VALID_CHAR;
+    | VALID_CHAR
+    ;
 
 varSelOrCall
     : id ('(' exprList ')')?

@@ -84,6 +84,7 @@ ERROR_NEWLINE:      '\r\n' | '\r' | '\n';
 VALID_CHAR
     : '\\' 'n'    { setText("\n");   }
     | '\\' 'r'    { setText("\r");   }
+    | '\\' 't'    { setText("\t");   }
     | '\\' '"'    { setText("\"");   }
     | '\\' '\\'   { setText("\\"); }
     | ~[\r\n"]
