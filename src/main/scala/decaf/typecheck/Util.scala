@@ -1,8 +1,8 @@
 package decaf.typecheck
 
-import decaf.error.{BadArrElementError, ClassNotFoundError, DeclConflictError, ErrorIssuer}
-import decaf.annot.TypedImplicit._
+import decaf.annot.TypeImplicit._
 import decaf.annot._
+import decaf.error.{BadArrElementError, ClassNotFoundError, DeclConflictError, ErrorIssuer}
 import decaf.tree.SyntaxTree._
 import decaf.tree.{TypedTree => Typed}
 
@@ -17,7 +17,7 @@ trait Util extends ErrorIssuer {
       case TClass(id) =>
         ctx.lookupClass(id.name) match {
           case Some(clazz) => Typed.TClass(clazz)(clazz.typ)
-          case None => issue(new ClassNotFoundError(id.name, typeLit.pos)); Typed.TClass(null)(NoType)
+          case None => issue(new ClassNotFoundError(id.name, typeLit.pos)); Typed.TVoid()(VoidType)
         }
 
       case TArray(elemType) =>
@@ -32,6 +32,7 @@ trait Util extends ErrorIssuer {
     typed.setPos(typeLit.pos)
   }
 
+  // FIXME: merge with typer's
   def resolveLocalVarDef(v: LocalVarDef)
                         (implicit ctx: ScopeContext, isParam: Boolean = false): Option[Typed.LocalVarDef] = {
     val t = typeTypeLit(v.typeLit)

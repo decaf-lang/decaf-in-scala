@@ -1,9 +1,9 @@
 package decaf.jvm
 
 import decaf.driver.{Config, Phase}
-import decaf.annot.SymbolizedImplicit._
-import decaf.annot.TypedImplicit._
-import decaf.annot.{ArrayType, JNative, LocalVarSymbol}
+import decaf.annot.SymbolImplicit._
+import decaf.annot.TypeImplicit._
+import decaf.annot.{ArrayType, JNativeType, LocalVarSymbol}
 import decaf.tree.TreeNode
 import decaf.tree.TreeNode.{ArithOp, EqOrCmpOp}
 import decaf.tree.TypedTree._
@@ -214,7 +214,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     case NewArray(elemType, len) =>
       emitExpr(len)
       elemType.typ match {
-        case t: JNative => mv.visitIntInsn(Opcodes.NEWARRAY, arrayTypeCode(t))
+        case t: JNativeType => mv.visitIntInsn(Opcodes.NEWARRAY, arrayTypeCode(t))
         case t => mv.visitTypeInsn(Opcodes.ANEWARRAY, toASMType(t).getInternalName)
       }
     case IndexSel(array, index) =>

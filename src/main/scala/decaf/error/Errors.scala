@@ -1,9 +1,7 @@
 package decaf.error
 
-import decaf.annot.Type
-import decaf.tree.TreeNode.Op
-
-import decaf.parsing.{Pos, NoPos}
+import decaf.annot.{ClassType, Type}
+import decaf.parsing.{NoPos, Pos}
 
 abstract class Error(val msg: String, val pos: Pos = NoPos) extends Exception {
   override def toString: String = pos match {
@@ -71,10 +69,10 @@ class BadPrintArgError(k: Int, actual: Type, pos: Pos)
 class BadReturnTypeError(expected: Type, actual: Type, pos: Pos)
   extends Error(s"incompatible return: $actual given, $expected expected", pos)
 
-class IncompatUnOpError(op: Op, exprType: Type, pos: Pos)
+class IncompatUnOpError(op: String, exprType: Type, pos: Pos)
   extends Error(s"incompatible operand: $op $exprType", pos)
 
-class IncompatBinOpError(op: Op, lhsType: Type, rhsType: Type, pos: Pos)
+class IncompatBinOpError(op: String, lhsType: Type, rhsType: Type, pos: Pos)
   extends Error(s"incompatible operands: $lhsType $op $rhsType", pos)
 
 class NotArrayError(pos: Pos)
@@ -95,25 +93,25 @@ class UndeclVarError(v: String, pos: Pos)
 class NotClassError(typ: Type, pos: Pos)
   extends Error(s"$typ is not a class type", pos)
 
-class FieldNotFoundError(field: String, clazz: String, pos: Pos)
+class FieldNotFoundError(field: String, clazz: ClassType, pos: Pos)
   extends Error(s"field '$field' not found in '$clazz'", pos)
 
-class FieldNotAccessError(field: String, clazz: String, pos: Pos)
+class FieldNotAccessError(field: String, clazz: ClassType, pos: Pos)
   extends Error(s"field '$field' of '$clazz' not accessible here", pos)
 
 class RefNonStaticError(field: String, method: String, pos: Pos)
   extends Error(s"can not reference a non-static field '$field' from static method '$method'", pos)
 
-class NotClassFieldError(field: String, typ: String, pos: Pos)
+class NotClassFieldError(field: String, typ: Type, pos: Pos)
   extends Error(s"cannot access field '$field' from '$typ'", pos)
 
-class NotClassMethodError(field: String, clazz: String, pos: Pos)
+class NotClassMethodError(field: String, clazz: ClassType, pos: Pos)
   extends Error(s"'$field' is not a method in class '$clazz'", pos)
 
 class BadArgCountError(method: String, expected: Int, actual: Int, pos: Pos)
   extends Error(s"function '$method' expects $expected argument(s) but $actual given", pos)
 
-class BadArgTypeError(k: Int, expected: String, actual: String, pos: Pos)
+class BadArgTypeError(k: Int, expected: Type, actual: Type, pos: Pos)
   extends Error(s"incompatible argument $k: $actual given, $expected expected", pos)
 
 class BadLengthArgError(count: Int, pos: Pos)

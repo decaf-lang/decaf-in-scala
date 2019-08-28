@@ -178,7 +178,7 @@ trait Util {
     case _ => Opcodes.ARETURN
   }
 
-  def arrayTypeCode(elemType: JNative): Int = elemType match {
+  def arrayTypeCode(elemType: JNativeType): Int = elemType match {
     case IntType => Opcodes.T_INT
     case BoolType => Opcodes.T_BOOLEAN
   }

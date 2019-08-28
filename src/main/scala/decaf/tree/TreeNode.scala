@@ -25,8 +25,9 @@ object TreeNode {
     * Any definition must be named.
     */
   trait Def extends Node {
-    val id: Id
-    val name: String = id.name
+    def id: Id
+
+    def name: String = id.name
   }
 
   /**
@@ -46,6 +47,8 @@ object TreeNode {
 
     override def toString: String = str
   }
+
+  implicit def getStrOfOp(op: Op): String = op.str
 
   /**
     * Unary operator.

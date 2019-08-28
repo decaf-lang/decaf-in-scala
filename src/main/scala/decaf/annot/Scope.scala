@@ -2,6 +2,11 @@ package decaf.annot
 
 import scala.collection.mutable
 
+/**
+  * Scopes.
+  *
+  * A scope stores the mapping of symbol names to symbols. Every scope has an owner (a symbol).
+  */
 sealed trait Scope extends Annot {
   type Item <: Symbol
   type Owner <: Symbol
@@ -18,24 +23,23 @@ sealed trait Scope extends Annot {
 
   def apply(key: String): Item = symbols(key)
 
+  /**
+    * Lookup a `key` in the current symbol table only.
+    *
+    * @param key the key
+    * @return the matched symbol (if any)
+    */
   def lookup(key: String): Option[Item] = symbols.get(key)
 
   def declare(symbol: Item): Unit = {
     symbols(symbol.name) = symbol
-    symbol.definedIn = this
   }
+
+  def isLocalOrFormal: Boolean = false
 
   override def toString: String = "{ " + symbols.map {
     case (name, symbol) => s"  $name -> $symbol"
   } mkString "\n" + " }"
-}
-
-object ScopedImplicit {
-
-  implicit class __Scoped__[S <: Scope](self: Annotated[S]) {
-    def scope: S = self.annot
-  }
-
 }
 
 class GlobalScope extends Scope {
@@ -51,56 +55,78 @@ class FormalScope extends Scope {
   type Item = LocalVarSymbol
   type Owner = MethodSymbol
 
+  override def isLocalOrFormal: Boolean = true
+
   val nestedScope: LocalScope = new LocalScope
 }
 
 class LocalScope extends Scope {
   type Item = LocalVarSymbol
 
+  override def isLocalOrFormal: Boolean = true
+
   val nestedScopes: mutable.ArrayBuffer[LocalScope] = new mutable.ArrayBuffer[LocalScope]
 }
 
-class ScopeContext private(global: GlobalScope, private val scopes: List[Scope]) {
+class ScopeContext private(global: GlobalScope, private val scopes: List[Scope], val currentScope: Scope,
+                           val currentClass: ClassSymbol, val currentMethod: MethodSymbol) {
 
-  def this(globalScope: GlobalScope) = this(globalScope, Nil)
-
-  def current: Scope = if (scopes.nonEmpty) scopes.head else global
+  def this(globalScope: GlobalScope) = this(globalScope, Nil, globalScope, null, null)
 
   def open(scope: Scope): ScopeContext = scope match {
     case s: ClassScope => s.parent match {
-      case Some(ps) => new ScopeContext(global, scope :: open(ps).scopes)
-      case None => new ScopeContext(global, scope :: scopes)
+      case Some(ps) => new ScopeContext(global, s :: open(ps).scopes, s, s.owner, null)
+      case None => new ScopeContext(global, s :: scopes, s, s.owner, null)
     }
-    case _ => new ScopeContext(global, scope :: scopes)
+    case s: FormalScope => new ScopeContext(global, s :: scopes, s, currentClass, s.owner)
+    case s: LocalScope => new ScopeContext(global, s :: scopes, s, currentClass, currentMethod)
   }
 
-  def currentClass: ClassSymbol = scopes.find(_.isInstanceOf[ClassScope]) match {
-    case Some(scope) => scope.asInstanceOf[ClassScope].owner
-    case None => throw new NoSuchElementException("current class symbol")
-  }
-
-  def currentFun: MethodSymbol = scopes.find(_.isInstanceOf[FormalScope]) match {
-    case Some(scope) => scope.asInstanceOf[FormalScope].owner
-    case None => throw new NoSuchElementException("current function symbol")
-  }
+  /**
+    * Find a symbol by key. Search in all possible scopes while the predicate `p` holds, and returns the innermost
+    * result.
+    *
+    * @param key    the key
+    * @param p      the predicate over the currently seeing scope
+    * @param scopes all remaining scopes to be searched
+    * @return innermost found symbol (if any)
+    */
+  @scala.annotation.tailrec
+  private def findWhile(key: String, p: Scope => Boolean, scopes: List[Scope] = scopes :+ global): Option[Symbol] =
+    scopes match {
+      case Nil => if (!p(global)) None else global.lookup(key)
+      case s :: ss =>
+        if (!p(s)) None
+        else s.lookup(key) match {
+          case Some(symbol) => Some(symbol)
+          case None => findWhile(key, p, ss)
+        }
+    }
 
   /**
     * Lookup a symbol by key. By saying "lookup", the user expects that the symbol is found.
     * In this way, we will always search in all possible scopes and returns the innermost result.
     *
-    * @param key
+    * @param key the key
     * @return innermost found symbol (if any)
     */
-  def lookup(key: String): Option[Symbol] = {
-    def findIn(scopes: List[Scope]): Option[Symbol] = scopes match {
-      case Nil => global.lookup(key)
-      case scope :: ss => scope.lookup(key) match {
-        case Some(symbol) => Some(symbol)
-        case None => findIn(ss)
-      }
-    }
+  def lookup(key: String): Option[Symbol] = findWhile(key, _ => true)
 
-    findIn(scopes)
+  /**
+    * Find if `key` conflicts with some already defined symbol. Rules:
+    * - if the current scope is local scope or formal scope, `key` cannot conflict with any already defined symbol
+    * up till the formal scope, and it cannot conflict with any names in the global scope
+    * - if the current scope is class scope or global scope, `key` cannot conflict with any already defined symbol
+    *
+    * NO override checking is performed here, the type checker should tell if the returned conflicting symbol is
+    * in fact allowed or not.
+    *
+    * @param key the key
+    * @return innermost conflicting symbol (if any)
+    */
+  def findConflict(key: String): Option[Symbol] = currentScope match {
+    case s if s.isLocalOrFormal => findWhile(key, _.isLocalOrFormal).orElse(global.lookup(key))
+    case _ => lookup(key)
   }
 
   def apply(key: String): Symbol = lookup(key).get
@@ -111,31 +137,13 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
 
   def getClass(key: String): ClassSymbol = global(key)
 
-  /**
-    * Search a symbol by key. By saying "search", the user expects that the symbol is _not_ found.
-    * In this way, we will try to search as "shallow" as possible. In particular:
-    * - if the innermost scope can hide, i.e. FormalScope & LocalScope, search the innermost and global scope;
-    * - otherwise, we have to search all possible scopes, i.e. like `lookup`.
-    *
-    * @param key
-    * @return innermost found symbol (if any)
-    */
-  def findConflict(key: String): Option[Symbol] =
-    lookup(key) match {
-      case Some(value) =>
-        value.definedIn match {
-          case _: GlobalScope | _: FormalScope | _: LocalScope => Some(value)
-          case _: ClassScope => scopes.head match {
-            case _: FormalScope | _: LocalScope => None
-            case _ => Some(value)
-          }
-        }
-      case None => None
-    }
+  def declare(symbol: Symbol): Unit = currentScope.declare(symbol.asInstanceOf[currentScope.Item])
+}
 
-  def declare(symbol: Symbol): Unit = {
-    assert(scopes.nonEmpty)
-    val scope = scopes.head
-    scope.declare(symbol.asInstanceOf[scope.Item])
+object ScopeImplicit {
+
+  implicit class ScopeAnnotatedHasScope[S <: Scope](self: Annotated[S]) {
+    def scope: S = self.annot
   }
+
 }

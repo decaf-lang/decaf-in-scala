@@ -1,15 +1,24 @@
 package decaf.typecheck
 
-import decaf.error._
-import decaf.annot.SymbolizedImplicit._
-import decaf.annot.TypedImplicit._
+import decaf.annot.SymbolImplicit._
+import decaf.annot.TypeImplicit._
 import decaf.annot._
+import decaf.error._
 import decaf.tree.SyntaxTree._
 import decaf.tree.TreeNode._
 import decaf.tree.{NamedTree => Named}
 
 import scala.collection.mutable
 
+/**
+  * The namer inputs a SyntaxTree and outputs a NamedTree. In this phase, we focus on resolving class definitions,
+  * including resolving their member variables and methods, but leave the checking of method body to the typer.
+  *
+  * The entry of type check is defined in Typer.scala.
+  *
+  * Namer will NOT be interrupted by resolve errors. Instead, we simply drop any field that cannot be resolved.
+  * If a class has bad inheritance, we make it extend nothing.
+  */
 trait Namer extends Util {
 
   class Context {
@@ -43,32 +52,15 @@ trait Namer extends Util {
     // Make sure any inheritance does not form a cycle. If so, eliminate the cycle by cutting an edge on the cycle.
     // Example: suppose A extends B, B extends C and C extends A, then we see A -> B -> C -> A forms a cycle.
     // We cut the last edge C -> A by detaching C's parent.
-    eliminateCycles
+    eliminateCycles()
 
     // So far, class inheritance is well-formed, i.e. inheritance relations form a forest of trees. Now we need to
-    // resolve every class definition, make sure that every member (variables and methods) is well-typed. However,
-    // since all defined classes are visible to every other class, which means we can access another class's members,
-    // and of course the type that itself represents, e.g.
-    //   class A {
-    //     class B foo; // access B
-    //     void bar() {
-    //       foo.baz(); // access baz of B
-    //     }
-    //   }
-    //   class B {
-    //     void baz();
-    //   }
-    // Apparently, classes cannot be resolved in the order they presented in the tree: class A refers to class B,
-    // whose definition goes later. To tackle this issue, one possible way is to first scan all classes "roughly"
-    // and then step into details of every method definition -- because at that time, signatures of class members are
-    // known. That's why we split the type checking phase into two passes: In the Resolver pass, we only scan class
-    // members, while ignoring any method body, because that's enough for us to know what a class looks like.
-    // In the Typer pass, we then step into every method body and type check every single statement and expression.
+    // resolve every class definition, make sure that every member (variables and methods) is well-typed.
     // Realizing that a class type can be used in the definition of a class member, either a variable or a method,
     // we shall first know all the accessible class types in the program. These types are wrapped into what we called
     // `ClassSymbol`s. Note that currently, the associated `scope` is empty because member resolving has not started
     // yet. All class symbols are stored in the global scope.
-    createClassSymbols
+    createClassSymbols()
 
     // Now, we can resolve every class definition to fill in its class scope table. To check if the overriding
     // behaves correctly, we should first resolve a base class and then its subclasses.
@@ -92,7 +84,7 @@ trait Namer extends Util {
     Named.TopLevel(resolvedClasses)(ctx.global).setPos(tree.pos)
   }
 
-  private def eliminateCycles(implicit ctx: Context): Unit = {
+  private def eliminateCycles()(implicit ctx: Context): Unit = {
     val visitedTime = new mutable.HashMap[String, Int]
     ctx.classes.keys.foreach { visitedTime(_) = 0 }
 
@@ -121,7 +113,7 @@ trait Namer extends Util {
     }
   }
 
-  private def createClassSymbols(implicit ctx: Context): Unit = {
+  private def createClassSymbols()(implicit ctx: Context): Unit = {
     def create(clazz: ClassDef): Unit = {
       if (!ctx.global.contains(clazz.name)) {
         val symbol = clazz.parent match {
@@ -182,12 +174,11 @@ trait Namer extends Util {
               case retType =>
                 val formalScope = new FormalScope
                 val formalCtx = ctx.open(formalScope)
-                if (!isStatic) formalCtx.declare(new LocalVarSymbol(ctx.currentClass.typ, id.pos))
+                if (!isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
                 val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 if (funType <= suspect.typ) { // override success TODO check spec
-                  val symbol = new MethodSymbol(m, funType, typedParams.map(_.symbol), formalScope,
-                    ctx.currentClass, Some(suspect))
+                  val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass, Some(suspect))
                   ctx.declare(symbol)
                   Some(Named.MethodDef(isStatic, ret, id, typedParams, body)(symbol))
                 } else { // override failure
@@ -203,7 +194,8 @@ trait Namer extends Util {
             val lit = typeTypeLit(typeLit)
             lit.typ match {
               case NoType => None
-              case VoidType => issue(new BadVarTypeError(id.name, v.pos));
+              case VoidType =>
+                issue(new BadVarTypeError(id.name, v.pos))
                 None
               case t =>
                 val symbol = new MemberVarSymbol(v, t, ctx.currentClass)
@@ -217,10 +209,10 @@ trait Namer extends Util {
               case retType =>
                 val formalScope = new FormalScope
                 val formalCtx: ScopeContext = ctx.open(formalScope)
-                if (!isStatic) formalCtx.declare(new LocalVarSymbol(ctx.currentClass.typ, id.pos))
+                if (!isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
                 val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
-                val symbol = new MethodSymbol(m, funType, typedParams.map(_.symbol), formalScope, ctx.currentClass)
+                val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass)
                 ctx.declare(symbol)
                 Some(Named.MethodDef(isStatic, rt, id, typedParams, body)(symbol))
             }

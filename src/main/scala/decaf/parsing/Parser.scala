@@ -50,7 +50,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     */
   override def post(tree: Tree)(implicit config: Config): Unit = {
     if (config.target == Config.Target.PA1) { // pretty only when the target is PA1
-      implicit val printer = new IndentPrinter
+      implicit val printer: IndentPrinter = new IndentPrinter
       PA1Tree.pretty(tree)
       //    PrettyTree.pretty(tree)(printer, PrettyTree.PrettyConfig(showPos = true))
       config.outputStream.print(printer.toString)

@@ -1,16 +1,25 @@
 package decaf.annot
 
+/**
+  * Types.
+  *
+  * Decaf has a very simple type system, consisting of:
+  * - basic types: int, bool, and string
+  * - array types
+  * - class types
+  * - function types (cannot be expressed in programs, but we use them to type check function calls)
+  */
 sealed trait Type extends Annot {
   /**
-    * Check if `this` is a subtype of `that`, denoted by `this <: that`.
+    * Check if `this` is a subtype of `that`, denoted by `this <= that`.
     * Rules:
     * {{{
-    *   t <: t (reflexive)
-    *   t1 <: t3 if t1 <: t2 and t2 <: t3 (transitive)
-    *   Error <: t, t <: Error
-    *   null <: class c
-    *   class c1 <: class c2 if c1 extends c2
-    *   (t1, t2, ..., tn) -> t <: (s1, s2, ..., sn) -> s if t <: s and si <: ti for every i
+    *   t <= t (reflexive)
+    *   t1 <= t3 if t1 <= t2 and t2 <= t3 (transitive)
+    *   Error <= t, t <= Error
+    *   null <= class c
+    *   class c1 <= class c2 if c1 extends c2
+    *   (t1, t2, ..., tn) -> t <= (s1, s2, ..., sn) -> s if t <= s and si <= ti for every i
     * }}}
     */
   def <=(that: Type): Boolean
@@ -37,13 +46,13 @@ class BaseType extends Type {
   }
 }
 
-trait JNative extends BaseType
+trait JNativeType extends BaseType
 
-object IntType extends JNative {
+object IntType extends JNativeType {
   override def toString: String = "int"
 }
 
-object BoolType extends JNative {
+object BoolType extends JNativeType {
   override def toString: String = "bool"
 }
 
@@ -126,9 +135,9 @@ object NoType extends Type {
   override def toString: String = "Error"
 }
 
-object TypedImplicit {
+object TypeImplicit {
 
-  implicit class __Typed__(self: Annotated[Type]) {
+  implicit class TypeAnnotatedHasType(self: Annotated[Type]) {
     def typ: Type = self.annot
   }
 

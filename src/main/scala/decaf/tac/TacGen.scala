@@ -1,7 +1,7 @@
 package decaf.tac
 
-import decaf.annot.SymbolizedImplicit._
-import decaf.annot.TypedImplicit._
+import decaf.annot.SymbolImplicit._
+import decaf.annot.TypeImplicit._
 import decaf.annot._
 import decaf.driver.{Config, Phase}
 import decaf.tac.Tac._
