@@ -264,7 +264,7 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
       case call @ Call(Some(VarSel(None, id)), method, _) if ctx.containsClass(id) =>
         // Special case: invoking a static method, like MyClass.foo()
         val clazz = ctx.getClass(id)
-        clazz.lookup(method) match {
+        clazz.scope.lookup(method) match {
           case Some(symbol) => symbol match {
             case m: MethodSymbol =>
               if (m.isStatic) typeCall(call, None, m)
@@ -283,7 +283,7 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
             if (args.nonEmpty) issue(new BadLengthArgError(args.length, expr.pos))
             Typed.ArrayLen(r.get)(IntType)
           case t @ ClassType(c, _) =>
-            ctx.getClass(c).lookup(method) match {
+            ctx.getClass(c).scope.lookup(method) match {
               case Some(sym) => sym match {
                 case m: MethodSymbol => typeCall(call, r, m)
                 case _ => issue(new NotClassMethodError(method, t, expr.pos)); err
@@ -364,7 +364,7 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
         r.typ match {
           case NoType => err
           case t @ ClassType(c, _) =>
-            ctx.getClass(c).lookup(id) match {
+            ctx.getClass(c).scope.lookup(id) match {
               case Some(sym) => sym match {
                 case v: MemberVarSymbol =>
                   if (!(ctx.currentClass.typ <= t)) // member vars are protected

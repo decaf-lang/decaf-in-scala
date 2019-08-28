@@ -17,19 +17,19 @@ sealed trait Scope extends Annot {
 
   def values: List[Item] = symbols.values.toList.sortBy(_.pos)
 
-  def collect[T <: Item](p: Item => Option[T]): List[T] = symbols.values.flatMap(p).toList
+  def flatMap[T <: Item](p: Item => Option[T]): List[T] = symbols.values.flatMap(p).toList
 
   def contains(key: String): Boolean = symbols.contains(key)
 
   def apply(key: String): Item = symbols(key)
 
   /**
-    * Lookup a `key` in the current symbol table only.
+    * Find a `key` in the current symbol table only.
     *
     * @param key the key
     * @return the matched symbol (if any)
     */
-  def lookup(key: String): Option[Item] = symbols.get(key)
+  def find(key: String): Option[Item] = symbols.get(key)
 
   def declare(symbol: Item): Unit = {
     symbols(symbol.name) = symbol
@@ -49,6 +49,14 @@ class GlobalScope extends Scope {
 class ClassScope(val parent: Option[ClassScope] = None) extends Scope {
   type Item = FieldSymbol
   type Owner = ClassSymbol
+
+  /**
+    * Lookup a symbol by key. Search in all parent and ancestor scopes, returns the innermost result.
+    *
+    * @param key the key
+    * @return innermost found symbol (if any)
+    */
+  def lookup(key: String): Option[FieldSymbol] = find(key).orElse(parent.flatMap(_.lookup(key)))
 }
 
 class FormalScope extends Scope {
@@ -94,10 +102,10 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope],
   @scala.annotation.tailrec
   private def findWhile(key: String, p: Scope => Boolean, scopes: List[Scope] = scopes :+ global): Option[Symbol] =
     scopes match {
-      case Nil => if (!p(global)) None else global.lookup(key)
+      case Nil => if (!p(global)) None else global.find(key)
       case s :: ss =>
         if (!p(s)) None
-        else s.lookup(key) match {
+        else s.find(key) match {
           case Some(symbol) => Some(symbol)
           case None => findWhile(key, p, ss)
         }
@@ -125,7 +133,7 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope],
     * @return innermost conflicting symbol (if any)
     */
   def findConflict(key: String): Option[Symbol] = currentScope match {
-    case s if s.isLocalOrFormal => findWhile(key, _.isLocalOrFormal).orElse(global.lookup(key))
+    case s if s.isLocalOrFormal => findWhile(key, _.isLocalOrFormal).orElse(global.find(key))
     case _ => lookup(key)
   }
 
@@ -133,7 +141,7 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope],
 
   def containsClass(key: String): Boolean = global.contains(key)
 
-  def lookupClass(key: String): Option[ClassSymbol] = global.lookup(key)
+  def lookupClass(key: String): Option[ClassSymbol] = global.find(key)
 
   def getClass(key: String): ClassSymbol = global(key)
 

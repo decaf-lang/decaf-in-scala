@@ -39,21 +39,17 @@ class ClassSymbol(tree: ClassDef, val typ: ClassType, val scope: ClassScope, val
 
   scope.owner = this
 
-  def vars: List[MemberVarSymbol] = scope.collect {
-    // TODO in future use isMemberVar
+  def vars: List[MemberVarSymbol] = scope.flatMap {
     case s: MemberVarSymbol => Some(s)
     case _ => None
   }
 
-  def methods: List[MethodSymbol] = scope.collect {
+  def methods: List[MethodSymbol] = scope.flatMap {
     case s: MethodSymbol => Some(s)
     case _ => None
   }
 
   def memberMethods: List[MethodSymbol] = methods.filterNot(_.isStatic)
-
-  def lookup(key: String): Option[FieldSymbol] =
-    new ScopeContext(new GlobalScope).open(scope).lookup(key).map(_.asInstanceOf[FieldSymbol])
 }
 
 trait FieldSymbol extends Symbol {

@@ -70,7 +70,7 @@ trait Namer extends Util {
     //  static void main() { ... }
     resolvedClasses.find(_.name == "Main") match {
       case Some(clazz) =>
-        clazz.symbol.scope.lookup("main") match {
+        clazz.symbol.scope.find("main") match {
           case Some(symbol) =>
             symbol match {
               case f: MethodSymbol if f.isStatic && (f.typ === FunType(Nil, VoidType)) => f.setMain()
