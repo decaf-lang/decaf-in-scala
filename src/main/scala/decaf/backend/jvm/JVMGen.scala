@@ -30,7 +30,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     // Thus, we always set on ACC_SUPER flag and let a non-inherited decaf class extend java.lang.Object.
     val access = Opcodes.ACC_PUBLIC + Opcodes.ACC_SUPER
     val superClass = clazz.parent.map(internalName).getOrElse(JAVA_SUPER_INTERNAL_NAME)
-    cw.visit(52, access, clazz.name, null, superClass, null)
+    cw.visit(Opcodes.V1_8, access, clazz.name, null, superClass, null)
 
     // First add the default constructor:
     val mv = cw.visitMethod(Opcodes.ACC_PUBLIC, CONSTRUCTOR_NAME, CONSTRUCTOR_DESC, null, null)
@@ -38,7 +38,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     mv.visitVarInsn(Opcodes.ALOAD, 0)
     mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superClass, CONSTRUCTOR_NAME, CONSTRUCTOR_DESC, false) // call super
     mv.visitInsn(Opcodes.RETURN)
-    mv.visitMaxs(-1, -1) // FIXME: blackjack, NegativeArraySizeException
+    mv.visitMaxs(-1, -1) // pass in random numbers, as COMPUTE_MAXS flag enables the computation
     mv.visitEnd()
 
     // Then generate every user-defined member:
@@ -71,9 +71,10 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
 
     // Visit method body and emit bytecode.
     mv.visitCode()
+    implicit val loopExits: List[Label] = Nil
     emitStmt(method.body)
     appendReturnIfNecessary(method)
-    mv.visitMaxs(-1, -1)
+    mv.visitMaxs(-1, -1) // again, random arguments
     mv.visitEnd()
   }
 
@@ -116,7 +117,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     * @param loopExits exit labels for the entered loops so far, arranged from the inner most to the outer most
     * @param ctx       the current context
     */
-  def emitStmt(stmt: Stmt)(implicit mv: MethodVisitor, loopExits: List[Label] = Nil, ctx: Context): Unit = stmt match {
+  def emitStmt(stmt: Stmt)(implicit mv: MethodVisitor, loopExits: List[Label], ctx: Context): Unit = stmt match {
     case Block(stmts) => stmts foreach emitStmt
 
     case v: LocalVarDef =>
@@ -185,7 +186,13 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     // Unary expressions
     case UnaryExpr(op, expr) =>
       emitExpr(expr)
-      mv.visitInsn(unaryOp(op))
+      op match {
+        case TreeNode.NEG => mv.visitInsn(Opcodes.INEG)
+        case TreeNode.NOT =>
+          // NOTE: !b = b xor 1
+          mv.visitInsn(Opcodes.ICONST_1)
+          mv.visitInsn(Opcodes.IXOR)
+      }
 
     // Binary expressions
     case BinaryExpr(op, lhs, rhs) =>
@@ -193,8 +200,10 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
       emitExpr(rhs)
       op match {
         case op: ArithOp => mv.visitInsn(arithOp(op))
-        case TreeNode.AND => mv.visitInsn(Opcodes.LAND)
-        case TreeNode.OR => mv.visitInsn(Opcodes.LOR)
+        // Warning: JVM doesn't support operations directly on booleans. Thus, we always use integer instuctions on
+        // them, i.e. IAND and IOR. Remember that LAND and LOR are for _long_ integers, not _logical_ and/or!
+        case TreeNode.AND => mv.visitInsn(Opcodes.IAND)
+        case TreeNode.OR => mv.visitInsn(Opcodes.IOR)
         case op: EqOrCmpOp => compare(op, lhs.typ)
       }
 

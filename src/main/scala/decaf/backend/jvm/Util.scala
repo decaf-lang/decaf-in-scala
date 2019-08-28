@@ -8,6 +8,7 @@ trait Util {
   val JAVA_SUPER_INTERNAL_NAME = ASMType.getInternalName(classOf[java.lang.Object])
   val CONSTRUCTOR_NAME = "<init>"
   val CONSTRUCTOR_DESC = ASMType.getMethodDescriptor(ASMType.VOID_TYPE)
+  val MAIN_DESCRIPTOR: String = "([Ljava/lang/String;)V"
 
   /**
     * {{{
@@ -139,9 +140,25 @@ trait Util {
     */
   def descriptor(field: FieldSymbol): String = toASMType(field.typ).getDescriptor
 
-  val MAIN_DESCRIPTOR: String = "([Ljava/lang/String;)V"
+  // -----------------------------------------------------------------------------------------------
+  // The following group of methods handle selection choice based on types. Since JVM has NO useful
+  // operations on booleans directly, by default we always regard a boolean value as an integer:
+  // 1 for true and 0 for false. In this way, the I-instructions are suitable for int and bool,
+  // and A-instructions for reference types (like objects and arrays).
+  //
+  // The only exception is that, boolean arrays are encoded as byte arrays, i.e. each element takes
+  // 8 bits. In this way, we must use the BA-instructions to load and store value from byte arrays.
+  //
+  // I believe the above convention is consistent with the implementation of the Java language.
+  //
+  // NOTE: every time you encounter the following runtime error:
+  // java.lang.NegativeArraySizeException: -1
+  //     at org.objectweb.asm.Frame.merge(Frame.java:1222)
+  // It is possible that your instructions have popped more bytes than the stack has. For instance,
+  // you attempt to pop a long (32 bit) from the stack, given that you just pushed an int (16 bit).
+  // -----------------------------------------------------------------------------------------------
 
-  def loadDefaultValue(typ: Type)(implicit mv: MethodVisitor): Any = typ match {
+  def loadDefaultValue(typ: Type)(implicit mv: MethodVisitor): Unit = typ match {
     case IntType | BoolType => mv.visitInsn(Opcodes.ICONST_0)
     case _ => mv.visitInsn(Opcodes.ACONST_NULL)
   }
@@ -176,11 +193,6 @@ trait Util {
     case IntType => Opcodes.IASTORE
     case BoolType => Opcodes.BASTORE
     case _ => Opcodes.AASTORE
-  }
-
-  def unaryOp(op: TreeNode.Op): Int = op match {
-    case TreeNode.NEG => Opcodes.INEG
-    case TreeNode.NOT => Opcodes.IXOR
   }
 
   def arithOp(op: TreeNode.ArithOp): Int = op match {
