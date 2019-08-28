@@ -4,6 +4,10 @@ import decaf.parsing.Positional
 
 object TreeNode {
 
+  /**
+    * Every tree node is a product, so that we can easily access all its members/children.
+    * Also, every tree node has a position (say the position in the source file).
+    */
   trait Node extends Product with Positional
 
   /**
@@ -15,7 +19,7 @@ object TreeNode {
     override def toString: String = name
   }
 
-  implicit def __getIdName__(id: Id): String = id.name
+  implicit def getNameOfId(id: Id): String = id.name
 
   /**
     * Any definition must be named.
@@ -26,7 +30,7 @@ object TreeNode {
   }
 
   /**
-    * A general form of variable declaration.
+    * A general form of variable declaration: it consists of a type literal indicating its type, and an identifier.
     */
   trait Var extends Def {
     type TypeLitT <: Node

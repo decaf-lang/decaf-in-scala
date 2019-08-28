@@ -2,6 +2,14 @@ package decaf.tree
 
 import decaf.annot._
 
+/**
+  * In a named tree:
+  * - The root is labeled with a `GlobalScope`
+  * - Every class is labeled with a `ClassSymbol`
+  * - Every method is labeled with a `MethodSymbol`
+  * - Every member variable is labeled with a `MemberVarSymbol`
+  * - Every method body is not yet resolved and thus remains `SyntaxTree.Stmt`
+  */
 object NamedTree extends TopLevelTmpl {
 
   type TopLevelAnnot = GlobalScope

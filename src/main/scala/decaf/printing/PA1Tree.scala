@@ -1,10 +1,13 @@
 package decaf.printing
 
-import decaf.parsing.StringUtil
+import decaf.parsing.Util.quote
 import decaf.tree.SyntaxTree._
 import decaf.tree.TreeNode
 import decaf.tree.TreeNode.{Id, Node, Op}
 
+/**
+  * PA1 output.
+  */
 object PA1Tree {
 
   def pretty(node: Node)(implicit printer: IndentPrinter): Unit = node match {
@@ -129,7 +132,6 @@ object PA1Tree {
     case Id(name) => printer.writeln(name)
   }
 
-
   def prettyType(typeLit: TypeLit): String = typeLit match {
     case TInt() => "inttype"
     case TBool() => "booltype"
@@ -143,7 +145,7 @@ object PA1Tree {
     case BoolLit(value) => s"boolconst $value"
     case IntLit(value) => s"intconst $value"
     case NullLit() => "null"
-    case StringLit(value) => s"stringconst ${ StringUtil.quote(value) }"
+    case StringLit(value) => s"stringconst ${ quote(value) }"
   }
 
   def prettyOp(op: Op): String = op match {

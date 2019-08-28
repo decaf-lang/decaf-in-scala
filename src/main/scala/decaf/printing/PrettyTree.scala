@@ -1,7 +1,7 @@
 package decaf.printing
 
 import decaf.annot.Annotated
-import decaf.parsing.StringUtil
+import decaf.parsing.Util.quote
 import decaf.tree.TreeNode.{Id, Node}
 
 object PrettyTree {
@@ -15,10 +15,11 @@ object PrettyTree {
     case None => printer.writeln("<none>")
     case es: List[_] =>
       printer.writeln("list")
-      printer.indent()
-      if (es.isEmpty) printer.writeln("<empty>") else es.foreach(prettyElement)
-      printer.dedent()
-    case e: String => printer.writeln(StringUtil.quote(e))
+      printer.withIndent {
+        if (es.isEmpty) printer.writeln("<empty>")
+        else es.foreach(prettyElement)
+      }
+    case e: String => printer.writeln(quote(e))
     case e => printer.writeln(e.toString)
   }
 
@@ -27,8 +28,8 @@ object PrettyTree {
     val posStr = if (config.showPos) s" @ (${ node.pos.line },${ node.pos.column })"
 
     printer.writeln(node.productPrefix + annotStr + posStr)
-    printer.indent()
-    node.productIterator.foreach(prettyElement)
-    printer.dedent()
+    printer.withIndent {
+      node.productIterator.foreach(prettyElement)
+    }
   }
 }

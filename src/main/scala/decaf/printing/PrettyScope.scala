@@ -2,6 +2,9 @@ package decaf.printing
 
 import decaf.annot._
 
+/**
+  * PA2 output.
+  */
 object PrettyScope {
   def pretty(scope: Scope)(implicit printer: IndentPrinter): Unit = scope match {
     case s: GlobalScope =>

@@ -1,6 +1,6 @@
 package decaf.tac
 
-import decaf.parsing.StringUtil
+import decaf.parsing.Util.quote
 
 object Tac {
 
@@ -27,7 +27,7 @@ object Tac {
   }
 
   case class LoadStrConst(dst: Temp, str: String) extends Instr {
-    override def toString: String = s"$dst = ${ StringUtil.quote(str) }"
+    override def toString: String = s"$dst = ${ quote(str) }"
   }
 
   // Arithmetic

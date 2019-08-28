@@ -3,8 +3,22 @@ package decaf.tree
 import decaf.annot.Annot
 import decaf.tree.TreeNode.Id
 
+/**
+  * A syntax tree, with no annotations.
+  */
 object SyntaxTree extends TreeTmpl {
 
+  /**
+    * Here we made a dummy `NoAnnot` to act as a placeholder for the annotation field, and we made it implicit.
+    * In this way, we can simply write:
+    * {{{
+    *   VarSel(r, v)
+    * }}}
+    * to create a `VarSel` node, because the Scala compiler will expand it to:
+    * {{{
+    *   VarSel(r, v)(NoAnnot)
+    * }}}
+    */
   implicit object NoAnnot extends Annot {
     override def toString: String = ""
   }

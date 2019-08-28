@@ -3,6 +3,17 @@ package decaf.tree
 import decaf.annot.{Annot, Annotated}
 import decaf.tree.TreeNode._
 
+/**
+  * A template trait for expression a tree in high-level -- details of method bodies are not stated in this template,
+  * but you should plug in a type `Stmt` as its body type.
+  *
+  * Why not just define a bunch of classes and let each of them represent a kind of tree node, like we used to do in
+  * Java? Because we want the type safety -- and distinguish different kinds of trees during the transformation passes.
+  * We will have a `SyntaxTree` as the parsing result, a `NamedTree` which contains class-level information after
+  * namer, and a `TypedTree` involving all necessary type information. However, we don't need to write three separate
+  * files to specify each of them. Thanks to the type members of Scala, we can extract the common nodes out, define
+  * them once and for all in a single file, without too much effort.
+  */
 trait TopLevelTmpl {
 
   /**
@@ -15,7 +26,7 @@ trait TopLevelTmpl {
 
   type ClassRef
 
-  type Tree = TopLevel
+  type Tree = TopLevel // root
 
   /**
     * A top-level decaf program, which consists of many class definitions.
@@ -85,6 +96,9 @@ trait TopLevelTmpl {
 
 }
 
+/**
+  * A template trait for expressing an entire tree, from class definitions to every little expressions.
+  */
 trait TreeTmpl extends TopLevelTmpl {
 
   /**

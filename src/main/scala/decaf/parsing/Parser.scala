@@ -4,44 +4,63 @@ import java.io.InputStream
 
 import decaf.driver.{Config, Phase}
 import decaf.error._
+import decaf.parsing.Util._
+import decaf.parsing.antlr.{DecafParser, DecafParserBaseVisitor}
 import decaf.printing.{IndentPrinter, PA1Tree}
 import decaf.tree.SyntaxTree._
 import decaf.tree.TreeNode
 import decaf.tree.TreeNode.Id
-import decaf.parsing.antlr.{DecafParser, DecafParserBaseVisitor}
 import org.antlr.v4.runtime._
 
 import scala.jdk.CollectionConverters._
 
+/**
+  * Decaf parser, corresponds to the "parser" phase.
+  */
 class Parser extends Phase[InputStream, Tree]("parser") {
 
+  /**
+    * Entry.
+    *
+    * @param in the input stream
+    * @return the syntax tree
+    */
   override def transform(in: InputStream): Tree = {
     val stream = CharStreams.fromStream(in)
-    val lexer = new decaf.parsing.Lexer(stream, this)
+    val lexer = new decaf.parsing.Lexer(stream)
     val tokens = new CommonTokenStream(lexer)
     val parser = new DecafParser(tokens)
     parser.addErrorListener(ErrorListener)
 
     try {
       val topLevel = parser.topLevel
-      return TopLevelVisitor.visit(topLevel)
-    }
-    catch {
+      return TopLevelVisitor.visit(topLevel) // the visitor will return the syntax tree
+    } catch {
       case error: Error => issue(error)
     }
 
-    TopLevel(Nil)
+    TopLevel(Nil) // when the parsing is interrupted by a fatal error, return empty tree
   }
 
+  /**
+    * After parsing succeeds, pretty print the tree if necessary.
+    *
+    * @param tree   the syntax tree
+    * @param config the compiler configuration
+    */
   override def post(tree: Tree)(implicit config: Config): Unit = {
-    implicit val printer = new IndentPrinter
-    PA1Tree.pretty(tree)
-    //    PrettyTree.pretty(tree)(printer, PrettyTree.PrettyConfig(showPos = true))
-    if (config.target == Config.Target.PA1) {
+    if (config.target == Config.Target.PA1) { // pretty only when the target is PA1
+      implicit val printer = new IndentPrinter
+      PA1Tree.pretty(tree)
+      //    PrettyTree.pretty(tree)(printer, PrettyTree.PrettyConfig(showPos = true))
       config.outputStream.print(printer.toString)
     }
   }
 
+  /**
+    * Our own error listener that can append parsing errors to our error issuer. We have to do this because Antlr
+    * has his own error recovery strategy -- but we don't want that!
+    */
   object ErrorListener extends BaseErrorListener {
     override def syntaxError(recognizer: Recognizer[_, _], offendingSymbol: Any, lineNumber: Int,
                              charPositionInLine: Int, msg: String, e: RecognitionException): Unit = {
@@ -55,23 +74,55 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     }
   }
 
-  object TopLevelVisitor extends DecafParserBaseVisitor[TopLevel] with Positioned {
+  // --------------------------------------------------------------------------------------------------------------
+  // The following methods do the actual parsing stuff. Strictly speaking, it is the Antlr-generated code that
+  // parses the decaf source. What we need to do is to simply translate the parsing tree yielded by Antlr into
+  // the SyntaxTree defined by ourselves. In short, a tree transformation.
+  //
+  // The entire parsing process:
+  // 1. Antlr-generated parser is invoked and parses the input source. Errors are captured by the above listener.
+  // 2. If a fatal error (unrecognized character) occurs, report that and exit. Other errors are appended but they
+  //    will not interrupt the process.
+  // 3. Finally, call the visitors below and we either obtain a syntax tree or fail with errors.
+  //
+  // Instead of doing the ugly nested instanceOf check, like this:
+  //
+  // if (node.isInstanceOf[TopLevel]) {
+  //   // do transformation
+  // } else if (node.isInstanceOf[ClassDef]) {
+  //   // do transformation
+  // } else if ...
+  //
+  // We stick to Java's visitor pattern -- also suggested by Antlr. Although a visitor returns a result of type T,
+  // but all methods in the visitor must have the same T. Apparently, this doesn't fit our situation. The syntax
+  // tree nodes are heterogeneous -- ClassDef, Field, Stmt, Expr, TypeLit, etc. Thus, a solution is to create
+  // separate visitors for each of them, and call the visitor we needed. For example, to create a While node,
+  // we first call the ExprVisitor to visit the condition, which gives us an expression `c`. Then, we call the
+  // StmtVisitor to visit the loop body, which gives us an expression `s`. Finally, call `While(c, s)` construct
+  // the tree node.
+  //
+  // Besides, remember to set the position, either by `positioned`, which regard the start location of the first
+  // token matched in the rule as the position, set by hand if this is not the case.
+  // --------------------------------------------------------------------------------------------------------------
+
+  object TopLevelVisitor extends DecafParserBaseVisitor[TopLevel] {
     override def visitTopLevel(ctx: DecafParser.TopLevelContext): TopLevel = positioned(ctx) {
       val classes = ctx.classDef.asScala.toList.map(_.accept(ClassDefVisitor))
       TopLevel(classes)
     }
   }
 
-  object ClassDefVisitor extends DecafParserBaseVisitor[ClassDef] with Positioned {
+  object ClassDefVisitor extends DecafParserBaseVisitor[ClassDef] {
     override def visitClassDef(ctx: DecafParser.ClassDefContext): ClassDef = positioned(ctx) {
       val id = ctx.id.accept(IdVisitor)
+      // NOTE: if an optional symbol (like extendsClause) is undefined, its corresponding field is null.
       val parent = if (ctx.extendsClause != null) Some(ctx.extendsClause.id.accept(IdVisitor)) else None
       val fields = ctx.field.asScala.toList.map(_.accept(FieldVisitor))
       ClassDef(id, parent, fields)
     }
   }
 
-  object FieldVisitor extends DecafParserBaseVisitor[Field] with Positioned {
+  object FieldVisitor extends DecafParserBaseVisitor[Field] {
     override def visitVarDef(ctx: DecafParser.VarDefContext): Field = {
       val typ = ctx.`var`.`type`.accept(TypeLitVisitor)
       val id = ctx.`var`.id.accept(IdVisitor)
@@ -81,13 +132,14 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     override def visitMethodDef(ctx: DecafParser.MethodDefContext): Field = {
       val returnType = ctx.`type`.accept(TypeLitVisitor)
       val id = ctx.id.accept(IdVisitor)
-      val params = if (ctx.varList == null) Nil else ctx.varList.`var`.asScala.toList.map(_.accept(LocalVarDefVisitor))
+      val params =
+        if (ctx.varList == null) Nil else ctx.varList.`var`.asScala.toList.map(_.accept(LocalVarDefVisitor))
       val body = ctx.stmtBlock.accept(StmtVisitor)
       MethodDef(ctx.STATIC != null, returnType, id, params, body).setPos(id.pos)
     }
   }
 
-  object TypeLitVisitor extends DecafParserBaseVisitor[TypeLit] with Positioned {
+  object TypeLitVisitor extends DecafParserBaseVisitor[TypeLit] {
     override def visitIntType(ctx: DecafParser.IntTypeContext): TypeLit = positioned(ctx) { TInt() }
 
     override def visitBoolType(ctx: DecafParser.BoolTypeContext): TypeLit = positioned(ctx) { TBool() }
@@ -105,7 +157,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     }
   }
 
-  object StmtVisitor extends DecafParserBaseVisitor[Stmt] with Positioned {
+  object StmtVisitor extends DecafParserBaseVisitor[Stmt] {
     override def visitLocalVarDef(ctx: DecafParser.LocalVarDefContext): Stmt =
       ctx.varDef.`var`.accept(LocalVarDefVisitor)
 
@@ -119,6 +171,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     override def visitIf(ctx: DecafParser.IfContext): Stmt = positioned(ctx) {
       val cond = ctx.cond.accept(ExprVisitor)
       val trueBranch = ctx.trueBranch.accept(this)
+      // NOTE: if the false branch is not given, regard it as skip.
       val falseBranch = if (ctx.falseBranch == null) Skip() else ctx.falseBranch.accept(this)
       If(cond, trueBranch, falseBranch)
     }
@@ -149,7 +202,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     }
   }
 
-  object LocalVarDefVisitor extends DecafParserBaseVisitor[LocalVarDef] with Positioned {
+  object LocalVarDefVisitor extends DecafParserBaseVisitor[LocalVarDef] {
     override def visitVar(ctx: DecafParser.VarContext): LocalVarDef = {
       val typ = ctx.`type`.accept(TypeLitVisitor)
       val id = ctx.id.accept(IdVisitor)
@@ -157,11 +210,11 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     }
   }
 
-  object SimpleStmtVisitor extends DecafParserBaseVisitor[SimpleStmt] with Positioned {
+  object SimpleStmtVisitor extends DecafParserBaseVisitor[SimpleStmt] {
     override def visitAssign(ctx: DecafParser.AssignContext): SimpleStmt = {
       val lhs = ctx.lValue.accept(LValueVisitor)
       val rhs = ctx.expr.accept(ExprVisitor)
-      Assign(lhs, rhs).setPos(Util.getPos(ctx.ASSIGN.getSymbol))
+      Assign(lhs, rhs).setPos(getPos(ctx.ASSIGN.getSymbol))
     }
 
     override def visitEval(ctx: DecafParser.EvalContext): SimpleStmt = {
@@ -174,7 +227,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     override def visitSkip(ctx: DecafParser.SkipContext): SimpleStmt = positioned(ctx) { Skip() }
   }
 
-  object LValueVisitor extends DecafParserBaseVisitor[LValue] with Positioned {
+  object LValueVisitor extends DecafParserBaseVisitor[LValue] {
     override def visitLValueVar(ctx: DecafParser.LValueVarContext): LValue = {
       val receiver = if (ctx.expr != null) Some(ctx.expr.accept(ExprVisitor)) else None
       val id = ctx.id.accept(IdVisitor)
@@ -188,7 +241,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     }
   }
 
-  object ExprVisitor extends DecafParserBaseVisitor[Expr] with Positioned {
+  object ExprVisitor extends DecafParserBaseVisitor[Expr] {
 
     override def visitLiteral(ctx: DecafParser.LiteralContext): Expr = ctx.lit.accept(this)
 
@@ -198,8 +251,8 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       try {
         value = literal.toInt
       } catch {
-        case _: NumberFormatException =>
-          issue(new IntTooLargeError(literal, Util.getPos(ctx.INT_LIT.getSymbol)))
+        case _: NumberFormatException => // not a valid 32-bit integer
+          issue(new IntTooLargeError(literal, getPos(ctx.INT_LIT.getSymbol)))
       }
 
       IntLit(value)
@@ -211,15 +264,15 @@ class Parser extends Phase[InputStream, Tree]("parser") {
 
     override def visitStringLit(ctx: DecafParser.StringLitContext): Expr = positioned(ctx) {
       val buffer = new StringBuilder
-      val pos = Util.getPos(ctx.OPEN_STRING.getSymbol)
+      val pos = getPos(ctx.OPEN_STRING.getSymbol)
       ctx.stringChar.asScala.foreach {
-        case node if node.ERROR_NEWLINE != null =>
-          issue(new NewlineInStrError(StringUtil.quote(buffer.toString), pos))
+        case node if node.ERROR_NEWLINE != null => // handle new line in string
+          issue(new NewlineInStrError(quote(buffer.toString), pos))
         case node => buffer ++= node.getText
       }
 
-      if (ctx.UNTERM_STRING != null) {
-        issue(new UntermStrError(StringUtil.quote(buffer.toString), pos))
+      if (ctx.UNTERM_STRING != null) { // handle unterminated string
+        issue(new UntermStrError(quote(buffer.toString), pos))
       }
 
       StringLit(buffer.toString)
@@ -308,7 +361,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       }
       val lhs = ctx.lhs.accept(this)
       val rhs = ctx.rhs.accept(this)
-      BinaryExpr(op, lhs, rhs).setPos(Util.getPos(ctx.infix))
+      BinaryExpr(op, lhs, rhs).setPos(getPos(ctx.infix))
     }
   }
 
@@ -319,18 +372,8 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     }
   }
 
-  object IdVisitor extends DecafParserBaseVisitor[Id] with Positioned {
+  object IdVisitor extends DecafParserBaseVisitor[Id] {
     override def visitId(ctx: DecafParser.IdContext): Id = positioned(ctx) { Id(ctx.ID.getText) }
   }
 
-}
-
-trait Positioned {
-  def positioned[T <: Positional](ctx: ParserRuleContext)(e: T): T = e.setPos(new Pos {
-    override def line: Int = ctx.getStart.getLine
-
-    override def column: Int = ctx.getStart.getCharPositionInLine + 1
-
-    override protected def lineContents: String = ???
-  })
 }

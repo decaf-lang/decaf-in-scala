@@ -1,15 +1,9 @@
 package decaf.parsing
 
-/** `Position` is the base trait for objects describing a position in a `document`.
+/**
+  * A position, say a line number and a column number in a source file.
   *
-  * It provides functionality for:
-  *   - generating a visual representation of this position (`longString`);
-  *   - comparing two positions (`<`).
-  *
-  * To use this class for a concrete kind of `document`, implement the `lineContents` method.
-  *
-  * @author Martin Odersky
-  * @author Adriaan Moors
+  * Imported from scala.util.parsing.input.Position, and made a few adaptions.
   */
 trait Pos extends Ordered[Pos] {
 
@@ -19,15 +13,15 @@ trait Pos extends Ordered[Pos] {
   /** The column number referred to by the position; column numbers start at 1. */
   def column: Int
 
-  /** The contents of the line at this position. (must not contain a new-line character).
-    */
+  /** The contents of the line at this position. (must not contain a new-line character). */
   protected def lineContents: String
 
-  /** Returns a string representation of the `Position`, of the form `line.column`. */
+  /** Returns a string representation. */
   override def toString = s"($line,$column)"
 
-  /** Returns a more ``visual'' representation of this position.
-    * More precisely, the resulting string consists of two lines:
+  /**
+    * Returns a more "visual" representation of this position. More precisely, the resulting string consists of
+    * two lines:
     *   1. the line in the document referred to by this position
     *   2. a caret indicating the column
     *
@@ -39,12 +33,12 @@ trait Pos extends Ordered[Pos] {
     */
   def longString = lineContents + "\n" + lineContents.take(column - 1).map { x => if (x == '\t') x else ' ' } + "^"
 
-  /** Compare this position to another, by first comparing their line numbers,
-    * and then -- if necessary -- using the columns to break a tie.
+  /** Compare this position to another, by first comparing their line numbers, and then -- if necessary -- using the
+    * columns to break a tie.
     *
-    * @param `that` a `Position` to compare to this `Position`
-    * @return true if this position's line number or (in case of equal line numbers)
-    *         column is smaller than the corresponding components of `that`
+    * @param that a position to compare to this position
+    * @return true if this position's line number or (in case of equal line numbers) column is smaller than the
+    *         corresponding components of that
     */
   override def compare(that: Pos): Int =
     if (this.line == that.line && this.column == that.column) 0
@@ -52,10 +46,8 @@ trait Pos extends Ordered[Pos] {
     else 1
 }
 
-/** Undefined position.
-  *
-  * @author Martin Odersky
-  * @author Adriaan Moors
+/**
+  * Undefined position.
   */
 object NoPos extends Pos {
   def line = 0
@@ -69,17 +61,14 @@ object NoPos extends Pos {
   def lineContents = ""
 }
 
+/**
+  * Something that has a position.
+  */
 trait Positional {
-
-  /** The source position of this object, initially set to undefined. */
   var pos: Pos = NoPos
 
-  /** If current source position is undefined, update it with given position `newpos`
-    *
-    * @return the object itself
-    */
-  def setPos(newpos: Pos): this.type = {
-    if (pos eq NoPos) pos = newpos
+  def setPos(pos: Pos): this.type = {
+    this.pos = pos
     this
   }
 }
