@@ -1,0 +1,25 @@
+class Main {
+    bool[] arr1;
+
+    void Init() {
+        arr1 = new bool[100];
+        int i;
+        for (i = 0; i < 100; i = i + 1) {
+            arr1[i] = i % 2 == 0;
+        }
+    }
+
+    bool even(int n) {
+        // REQUIRE 0 <= n < 100
+        return arr1[n];
+    }
+
+    static void main() {
+        class Main m;
+        m = new Main();
+        m.Init();
+        Print("3 is even: ", m.even(3), "\n");
+        Print("12 is even: ", m.even(12), "\n");
+        Print("7 is odd: ", !m.even(7), "\n");
+    }
+}

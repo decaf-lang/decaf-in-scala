@@ -24,3 +24,7 @@ antlr4PackageName in Antlr4 := Some("decaf.parsing.antlr")
 antlr4GenListener in Antlr4 := false // default: true
 
 antlr4GenVisitor in Antlr4 := true // default: false
+
+// assembly
+
+assemblyOutputPath in assembly := file("target/decaf.jar")

@@ -19,7 +19,7 @@ project/plugins/project/
 .idea/
 
 # Tmp files
-TestCases/
+TestCases/*/output/
 *.tac
 *.s
-
+*.class
