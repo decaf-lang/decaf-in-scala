@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import scopt.Read
 import scopt.Read.reads
 
+// FIXME: use an easier logger in future
 trait NativeLogger {
   val LOGGER = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[Logger]
 

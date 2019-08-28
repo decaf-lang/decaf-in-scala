@@ -4,10 +4,10 @@ import java.io.InputStream
 
 import decaf.driver.{Config, Phase}
 import decaf.error._
-import decaf.frontend.printing.{IndentPrinter, PA1Tree}
-import decaf.frontend.tree.SyntaxTree._
-import decaf.frontend.tree.TreeNode
-import decaf.frontend.tree.TreeNode.Id
+import decaf.printing.{IndentPrinter, PA1Tree}
+import decaf.tree.SyntaxTree._
+import decaf.tree.TreeNode
+import decaf.tree.TreeNode.Id
 import decaf.parsing.antlr.{DecafParser, DecafParserBaseVisitor}
 import org.antlr.v4.runtime._
 

@@ -1,6 +1,6 @@
 lexer grammar DecafLexer;
 
-// Keywords (except those as literals)
+// Keywords (except those literals)
 
 BOOL:           'bool';
 BREAK:          'break';
@@ -82,10 +82,10 @@ mode IN_STRING;
 
 ERROR_NEWLINE:      '\r\n' | '\r' | '\n';
 VALID_CHAR
-    : '\\' 'n'    { setText("\n");   }
-    | '\\' 'r'    { setText("\r");   }
-    | '\\' 't'    { setText("\t");   }
-    | '\\' '"'    { setText("\"");   }
+    : '\\' 'n'    { setText("\n"); }
+    | '\\' 'r'    { setText("\r"); }
+    | '\\' 't'    { setText("\t"); }
+    | '\\' '"'    { setText("\""); }
     | '\\' '\\'   { setText("\\"); }
     | ~[\r\n"]
     ;

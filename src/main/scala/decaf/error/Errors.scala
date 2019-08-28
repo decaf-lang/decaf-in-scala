@@ -1,7 +1,7 @@
 package decaf.error
 
-import decaf.frontend.annot.Type
-import decaf.frontend.tree.TreeNode.Op
+import decaf.annot.Type
+import decaf.tree.TreeNode.Op
 
 import decaf.parsing.{Pos, NoPos}
 
