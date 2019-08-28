@@ -28,6 +28,8 @@ object TypedTree extends TreeTmpl {
 
   case class ArrayLen(array: Expr)(implicit val annot: ExprAnnot) extends Expr
 
+  // Temporary
+
   case class Ill(expr: SyntaxTree.Expr)(implicit val annot: ExprAnnot) extends LValue
 
 }

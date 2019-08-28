@@ -1,19 +1,17 @@
 lexer grammar DecafLexer;
 
-// Keywords
+// Keywords (except those as literals)
 
 BOOL:           'bool';
 BREAK:          'break';
 CLASS:          'class';
 ELSE:           'else';
 EXTENDS:        'extends';
-FALSE:          'false';
 FOR:            'for';
 IF:             'if';
 INSTANCEOF:     'instanceof';
 INT:            'int';
 NEW:            'new';
-NULL:           'null';
 RETURN:         'return';
 PRINT:          'Print';
 READ_INTEGER:   'ReadInteger';
@@ -21,7 +19,6 @@ READ_LINE:      'ReadLine';
 STATIC:         'static';
 STRING:         'string';
 THIS:           'this';
-TRUE:           'true';
 VOID:           'void';
 WHILE:          'while';
 
@@ -55,15 +52,11 @@ RBRACK:         ']';
 LBRACE:         '{';
 RBRACE:         '}';
 
-// Identifiers
-
-ID:                 [A-Za-z][_0-9A-Za-z]*;
-
 // Literals
 
 INT_LIT:            [0-9]+ | [0][Xx][0-9A-Fa-f]+;
-BOOL_LIT:           TRUE | FALSE;
-NULL_LIT:           NULL;
+BOOL_LIT:           'true' | 'false';
+NULL_LIT:           'null';
 
 // For strings: we only handle characters that consists of a string in the lexer grammar,
 // and leave the concatenation for parser grammar.
@@ -74,6 +67,10 @@ OPEN_STRING:        '"' -> pushMode(IN_STRING);
 
 WHITESPACE:         [ \t\r\n]+ -> skip;
 COMMENT:            '//' ~[\r\n]* -> skip;
+
+// Identifiers
+
+ID:                 [A-Za-z][_0-9A-Za-z]*;
 
 // Error
 

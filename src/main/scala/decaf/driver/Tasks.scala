@@ -3,11 +3,11 @@ package decaf.driver
 import java.io.InputStream
 
 import decaf.backend.jvm.{JVMClass, JVMGen}
-import decaf.parsing.Parser
 import decaf.frontend.tac.Tac
 import decaf.frontend.tacgen.TacGen
 import decaf.frontend.tree.TypedTree
-import decaf.frontend.typecheck.{Namer, Typer}
+import decaf.frontend.typecheck.Typer
+import decaf.parsing.Parser
 
 class Tasks(implicit val opt: Config) {
 
@@ -27,7 +27,7 @@ class Tasks(implicit val opt: Config) {
 
   val parse = TNil(new Parser)
 
-  val typeCheck: Task[InputStream, TypedTree.Tree] = parse >> new Namer >> new Typer
+  val typeCheck: Task[InputStream, TypedTree.Tree] = parse >> new Typer
 
   val tac: Task[InputStream, Tac.Program] = typeCheck >> new TacGen
 

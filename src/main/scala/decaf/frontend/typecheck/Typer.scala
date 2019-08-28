@@ -6,14 +6,15 @@ import decaf.frontend.annot.ScopedImplicit._
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
 import decaf.frontend.annot._
-import decaf.frontend.printing.{IndentPrinter, PrettyScope, PrettyTree}
+import decaf.frontend.printing.{IndentPrinter, PrettyScope}
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.{NamedTree => Named, TypedTree => Typed}
 
-class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
+class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
 
-  override def transform(tree: Named.Tree): Typed.Tree = {
+  override def transform(in: Tree): Typed.Tree = {
+    val tree = resolveTree(in)
     val global = new ScopeContext(tree.scope)
     val checkedClasses = tree.classes.map {
       case clazz @ Named.ClassDef(id, parent, fields) =>
@@ -22,8 +23,8 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         val checkedFields = fields.map {
           case v @ Named.VarDef(typeLit, id) => Typed.VarDef(typeLit, id)(v.symbol).setPos(v.pos)
           case f @ Named.MethodDef(isStatic, returnType, id, params, body) =>
-            implicit val localCtx: ScopeContext = ctx.open(f.symbol.scope)
-            val checkedBody = checkStmt(body)
+            val localCtx = ctx.open(f.symbol.scope)
+            val checkedBody = checkStmt(body)(State(), localCtx)
             // TODO check return
             Typed.MethodDef(isStatic, returnType, id, params, checkedBody)(f.symbol).setPos(f.pos)
         }
@@ -33,7 +34,13 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
     Typed.TopLevel(checkedClasses)(tree.scope).setPos(tree.pos)
   }
 
-  def checkStmt(stmt: Stmt)(implicit insideLoop: Boolean = false, ctx: ScopeContext): Typed.Stmt = {
+  case class State(insideLoop: Boolean = false, directInBlock: Boolean = true) {
+    def setInLoop: State = State(true, false)
+
+    def setNotInBlock: State = State(insideLoop, false)
+  }
+
+  def checkStmt(stmt: Stmt)(implicit state: State, ctx: ScopeContext): Typed.Stmt = {
     val checked = stmt match {
       case varDef @ LocalVarDef(typeLit, id) =>
         val r = ctx.findConflict(id.name) match {
@@ -60,11 +67,12 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         val scope = ctx.current match {
           case s: FormalScope => s.nestedScope
           case s: LocalScope =>
-            s.nestedScopes += new LocalScope
-            s.nestedScopes.last
+            val ls = new LocalScope
+            if (state.directInBlock) s.nestedScopes += ls
+            ls
         }
         val local = ctx.open(scope)
-        val ss = stmts.map { checkStmt(_)(insideLoop, local) }
+        val ss = stmts.map { checkStmt(_)(state, local) }
         Typed.Block(ss)
 
       case Assign(lhs, rhs) =>
@@ -86,24 +94,24 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
       case If(cond, trueBranch, falseBranch) =>
         val c = checkTestExpr(cond)
-        val t = checkStmt(trueBranch)
-        val f = checkStmt(falseBranch)
+        val t = checkStmt(trueBranch)(state.setNotInBlock, ctx)
+        val f = checkStmt(falseBranch)(state.setNotInBlock, ctx)
         Typed.If(c, t, f)
 
       case While(cond, body) =>
         val c = checkTestExpr(cond)
-        val b = checkStmt(body)(true, ctx)
+        val b = checkStmt(body)(state.setInLoop, ctx)
         Typed.While(c, b)
 
       case For(init, cond, update, body) =>
         val i = checkStmt(init)
         val c = checkTestExpr(cond)
         val u = checkStmt(update)
-        val b = checkStmt(body)(true, ctx)
+        val b = checkStmt(body)(state.setInLoop, ctx)
         Typed.For(i, c, u, b)
 
       case Break() =>
-        if (!insideLoop) issue(new BreakOutOfLoopError(stmt.pos))
+        if (!state.insideLoop) issue(new BreakOutOfLoopError(stmt.pos))
         Typed.Break()
 
       case Return(expr) =>
@@ -117,7 +125,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
         val es = exprs.zipWithIndex.map {
           case (expr, i) =>
             val e = typeExpr(expr)
-            if (e.typ.noError && !e.typ.isBaseType) issue(new BadPrintArgError(i, e.typ, expr.pos))
+            if (e.typ.noError && !e.typ.isBaseType) issue(new BadPrintArgError(i + 1, e.typ, expr.pos))
             e
         }
         Typed.Print(es)
@@ -197,14 +205,15 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
       case call @ Call(Some(VarSel(None, id)), method, _) if ctx.containsClass(id) =>
         // special case like MyClass.foo();
-        ctx.getClass(id).lookup(method) match {
+        val clazz = ctx.getClass(id)
+        clazz.lookup(method) match {
           case Some(sym) => sym match {
             case m: MethodSymbol =>
-              if (!m.isStatic) issue(new NotClassFieldError(method, id, expr.pos))
-              typeCall(call, None, m)
-            case _ => issue(new NotClassMethodError(method, id, expr.pos)); Typed.Ill(expr)
+              if (m.isStatic) typeCall(call, None, m)
+              else { issue(new NotClassFieldError(method, clazz.typ.toString, expr.pos)); Typed.Ill(expr) }
+            case _ => issue(new NotClassMethodError(method, clazz.typ.toString, expr.pos)); Typed.Ill(expr)
           }
-          case None => issue(new FieldNotFoundError(method, id, expr.pos)); Typed.Ill(expr)
+          case None => issue(new FieldNotFoundError(method, clazz.typ.toString, expr.pos)); Typed.Ill(expr)
         }
 
       case call @ Call(receiver, method, args) =>
@@ -216,13 +225,13 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
             assert(r.isDefined)
             if (args.nonEmpty) issue(new BadLengthArgError(args.length, expr.pos))
             Typed.ArrayLen(r.get)(IntType)
-          case ClassType(clazz, _) =>
-            ctx.getClass(clazz).lookup(method) match {
+          case clazz @ ClassType(c, _) =>
+            ctx.getClass(c).lookup(method) match {
               case Some(sym) => sym match {
                 case m: MethodSymbol => typeCall(call, r, m)
-                case _ => issue(new NotClassMethodError(method, clazz, expr.pos)); Typed.Ill(expr)
+                case _ => issue(new NotClassMethodError(method, clazz.toString, expr.pos)); Typed.Ill(expr)
               }
-              case None => issue(new FieldNotFoundError(method, clazz, expr.pos)); Typed.Ill(expr)
+              case None => issue(new FieldNotFoundError(method, clazz.toString, expr.pos)); Typed.Ill(expr)
             }
           case t => issue(new NotClassFieldError(method, t.toString, expr.pos)); Typed.Ill(expr)
         }
@@ -237,7 +246,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
 
       case ClassCast(obj, clazz) =>
         val o = typeExpr(obj)
-        if (!o.typ.isClassType) issue(new NotClassError(o.typ, expr.pos))
+        if (!o.typ.isClassType) issue(new NotClassError(o.typ, o.pos))
         ctx.lookupClass(clazz) match {
           case Some(c) => Typed.ClassCast(o, c)(c.typ)
           case None => issue(new ClassNotFoundError(clazz.name, expr.pos)); Typed.Ill(expr)
@@ -260,7 +269,7 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
       case ((t, a), i) =>
         val e = typeExpr(a)
         if (e.typ.noError && !(e.typ <= t))
-          issue(new BadArgTypeError(i, t.toString, e.typ.toString, a.pos))
+          issue(new BadArgTypeError(i + 1, t.toString, e.typ.toString, a.pos))
         e
     }
 
@@ -271,20 +280,25 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
   def typeLValue(expr: LValue)(implicit ctx: ScopeContext): Typed.LValue = {
     val typed = expr match {
       // Variable, which should be complicated since a legal variable could refer to a local var,
-      // a visible member var, and a class name.
+      // a visible member var (, and a class name).
       case VarSel(None, id) =>
         ctx.lookup(id) match {
           case Some(sym) => sym match {
             case v: LocalVarSymbol => Typed.LocalVar(v)(v.typ)
             case v: MemberVarSymbol =>
               if (ctx.currentFun.isStatic) // member vars cannot be accessed in a static method
-                issue(new RefNonStaticError(name, ctx.currentFun.name, expr.pos))
+                issue(new RefNonStaticError(id, ctx.currentFun.name, expr.pos))
               Typed.MemberVar(Typed.This(), v)(v.typ)
             // TODO report error: method and types are not allowed here
-            case _ => issue(new UndeclVarError(name, expr.pos)); Typed.Ill(expr)
+            case _ => issue(new UndeclVarError(id, expr.pos)); Typed.Ill(expr)
           }
           case None => issue(new UndeclVarError(id, expr.pos)); Typed.Ill(expr)
         }
+
+      case VarSel(Some(VarSel(None, id)), f) if ctx.containsClass(id) =>
+        // special case like MyClass.foo: report error cannot access field 'foo' from 'class : MyClass'
+        issue(new NotClassFieldError(f, ctx.getClass(id).typ.toString, expr.pos))
+        Typed.Ill(expr)
 
       case VarSel(Some(receiver), id) =>
         val r = typeExpr(receiver)
@@ -295,12 +309,12 @@ class Typer extends Phase[Named.Tree, Typed.Tree]("typer") with Util {
               case Some(sym) => sym match {
                 case v: MemberVarSymbol =>
                   if (!(ctx.currentClass.typ <= t)) // member vars are protected
-                    issue(new FieldNotAccessError(id, clazz, expr.pos))
+                    issue(new FieldNotAccessError(id, t.toString, expr.pos))
                   Typed.MemberVar(r, v)(v.typ)
                 // case m: MethodSymbol => TODO report error: method and types are not allowed here
-                case _ => issue(new FieldNotFoundError(id, clazz, expr.pos)); Typed.Ill(expr)
+                case _ => issue(new FieldNotFoundError(id, t.toString, expr.pos)); Typed.Ill(expr)
               }
-              case None => issue(new FieldNotFoundError(id, clazz, expr.pos)); Typed.Ill(expr)
+              case None => issue(new FieldNotFoundError(id, t.toString, expr.pos)); Typed.Ill(expr)
             }
           case t => issue(new NotClassFieldError(id, t.toString, expr.pos)); Typed.Ill(expr)
         }

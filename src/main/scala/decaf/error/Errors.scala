@@ -34,10 +34,10 @@ class SyntaxError(msg: String, pos: Pos)
 // Namer errors
 
 class BadArrElementError(pos: Pos)
-  extends Error("array element type must be non-void type", pos)
+  extends Error("array element type must be non-void known type", pos)
 
 class BadVarTypeError(id: String, pos: Pos)
-  extends Error(s"cannot declare identifier '$id' as void type")
+  extends Error(s"cannot declare identifier '$id' as void type", pos)
 
 class BadInheritanceError(pos: Pos)
   extends Error("illegal class inheritance (should be acyclic)", pos)
@@ -102,7 +102,7 @@ class FieldNotAccessError(field: String, clazz: String, pos: Pos)
   extends Error(s"field '$field' of '$clazz' not accessible here", pos)
 
 class RefNonStaticError(field: String, method: String, pos: Pos)
-  extends Error(s"can not reference a non-static field '$field' from static method from '$method'", pos)
+  extends Error(s"can not reference a non-static field '$field' from static method '$method'", pos)
 
 class NotClassFieldError(field: String, typ: String, pos: Pos)
   extends Error(s"cannot access field '$field' from '$typ'", pos)

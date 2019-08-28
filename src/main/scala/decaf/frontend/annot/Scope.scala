@@ -20,7 +20,10 @@ sealed trait Scope extends Annot {
 
   def lookup(key: String): Option[Item] = symbols.get(key)
 
-  def declare(symbol: Item): Unit = symbols(symbol.name) = symbol
+  def declare(symbol: Item): Unit = {
+    symbols(symbol.name) = symbol
+    symbol.definedIn = this
+  }
 
   override def toString: String = "{ " + symbols.map {
     case (name, symbol) => s"  $name -> $symbol"
@@ -45,14 +48,14 @@ class ClassScope(val parent: Option[ClassScope] = None) extends Scope {
 }
 
 class FormalScope extends Scope {
-  type Item = MemberVarSymbol
+  type Item = LocalVarSymbol
   type Owner = MethodSymbol
 
   val nestedScope: LocalScope = new LocalScope
 }
 
 class LocalScope extends Scope {
-  type Item = MemberVarSymbol
+  type Item = LocalVarSymbol
 
   val nestedScopes: mutable.ArrayBuffer[LocalScope] = new mutable.ArrayBuffer[LocalScope]
 }
@@ -118,13 +121,16 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope])
     * @return innermost found symbol (if any)
     */
   def findConflict(key: String): Option[Symbol] =
-    if (scopes.isEmpty) global.lookup(key)
-    else scopes.head match {
-      case _: FormalScope | _: LocalScope => scopes.head.lookup(key) match {
-        case Some(symbol) => Some(symbol)
-        case None => global.lookup(key)
-      }
-      case _ => lookup(key)
+    lookup(key) match {
+      case Some(value) =>
+        value.definedIn match {
+          case _: GlobalScope | _: FormalScope | _: LocalScope => Some(value)
+          case _: ClassScope => scopes.head match {
+            case _: FormalScope | _: LocalScope => None
+            case _ => Some(value)
+          }
+        }
+      case None => None
     }
 
   def declare(symbol: Symbol): Unit = {

@@ -1,6 +1,5 @@
 package decaf.frontend.typecheck
 
-import decaf.driver.Phase
 import decaf.error._
 import decaf.frontend.annot.SymbolizedImplicit._
 import decaf.frontend.annot.TypedImplicit._
@@ -11,14 +10,14 @@ import decaf.frontend.tree.{NamedTree => Named}
 
 import scala.collection.mutable
 
-class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
+trait Namer extends Util {
 
   class Context {
     val global: GlobalScope = new GlobalScope
     val classes: mutable.HashMap[String, ClassDef] = new mutable.HashMap
   }
 
-  override def transform(tree: Tree): Named.Tree = {
+  def resolveTree(tree: Tree): Named.Tree = {
     implicit val ctx = new Context
 
     // Check conflicting definitions. If any, ignore the redefined ones.
@@ -183,15 +182,16 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
               case retType =>
                 val formalScope = new FormalScope
                 val formalCtx = ctx.open(formalScope)
+                if (!isStatic) formalCtx.declare(new LocalVarSymbol(ctx.currentClass.typ, id.pos))
                 val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
-                if (suspect.typ === funType) { // override success
+                if (funType <= suspect.typ) { // override success TODO check spec
                   val symbol = new MethodSymbol(m, funType, typedParams.map(_.symbol), formalScope,
                     ctx.currentClass, Some(suspect))
                   ctx.declare(symbol)
                   Some(Named.MethodDef(isStatic, ret, id, typedParams, body)(symbol))
                 } else { // override failure
-                  issue(new BadOverrideError(m.name, suspect.owner.name, suspect.pos))
+                  issue(new BadOverrideError(m.name, suspect.owner.name, m.pos))
                   None
                 }
             }
@@ -217,7 +217,8 @@ class Namer extends Phase[Tree, Named.Tree]("namer") with Util {
               case retType =>
                 val formalScope = new FormalScope
                 val formalCtx: ScopeContext = ctx.open(formalScope)
-                val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx) }
+                if (!isStatic) formalCtx.declare(new LocalVarSymbol(ctx.currentClass.typ, id.pos))
+                val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 val symbol = new MethodSymbol(m, funType, typedParams.map(_.symbol), formalScope, ctx.currentClass)
                 ctx.declare(symbol)

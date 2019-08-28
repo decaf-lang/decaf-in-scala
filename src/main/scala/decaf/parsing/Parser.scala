@@ -72,18 +72,18 @@ class Parser extends Phase[InputStream, Tree]("parser") {
   }
 
   object FieldVisitor extends DecafParserBaseVisitor[Field] with Positioned {
-    override def visitVarDef(ctx: DecafParser.VarDefContext): Field = positioned(ctx) {
+    override def visitVarDef(ctx: DecafParser.VarDefContext): Field = {
       val typ = ctx.`var`.`type`.accept(TypeLitVisitor)
       val id = ctx.`var`.id.accept(IdVisitor)
-      VarDef(typ, id)
+      VarDef(typ, id).setPos(id.pos)
     }
 
-    override def visitMethodDef(ctx: DecafParser.MethodDefContext): Field = positioned(ctx) {
+    override def visitMethodDef(ctx: DecafParser.MethodDefContext): Field = {
       val returnType = ctx.`type`.accept(TypeLitVisitor)
       val id = ctx.id.accept(IdVisitor)
       val params = if (ctx.varList == null) Nil else ctx.varList.`var`.asScala.toList.map(_.accept(LocalVarDefVisitor))
       val body = ctx.stmtBlock.accept(StmtVisitor)
-      MethodDef(ctx.STATIC != null, returnType, id, params, body)
+      MethodDef(ctx.STATIC != null, returnType, id, params, body).setPos(id.pos)
     }
   }
 
@@ -119,7 +119,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     override def visitIf(ctx: DecafParser.IfContext): Stmt = positioned(ctx) {
       val cond = ctx.cond.accept(ExprVisitor)
       val trueBranch = ctx.trueBranch.accept(this)
-      val falseBranch = if (ctx.falseBranch == null) Block() else ctx.falseBranch.accept(this)
+      val falseBranch = if (ctx.falseBranch == null) Skip() else ctx.falseBranch.accept(this)
       If(cond, trueBranch, falseBranch)
     }
 
@@ -150,36 +150,35 @@ class Parser extends Phase[InputStream, Tree]("parser") {
   }
 
   object LocalVarDefVisitor extends DecafParserBaseVisitor[LocalVarDef] with Positioned {
-    override def visitVar(ctx: DecafParser.VarContext): LocalVarDef = positioned(ctx) {
+    override def visitVar(ctx: DecafParser.VarContext): LocalVarDef = {
       val typ = ctx.`type`.accept(TypeLitVisitor)
       val id = ctx.id.accept(IdVisitor)
-      LocalVarDef(typ, id)
+      LocalVarDef(typ, id).setPos(id.pos)
     }
   }
 
   object SimpleStmtVisitor extends DecafParserBaseVisitor[SimpleStmt] with Positioned {
-    override def visitAssign(ctx: DecafParser.AssignContext): SimpleStmt = positioned(ctx) {
+    override def visitAssign(ctx: DecafParser.AssignContext): SimpleStmt = {
       val lhs = ctx.lValue.accept(LValueVisitor)
       val rhs = ctx.expr.accept(ExprVisitor)
-      Assign(lhs, rhs)
+      Assign(lhs, rhs).setPos(Util.getPos(ctx.ASSIGN.getSymbol))
     }
 
-    override def visitEval(ctx: DecafParser.EvalContext): SimpleStmt = positioned(ctx) {
+    override def visitEval(ctx: DecafParser.EvalContext): SimpleStmt = {
       val receiver = if (ctx.expr != null) Some(ctx.expr.accept(ExprVisitor)) else None
       val id = ctx.id.accept(IdVisitor)
       val args = ctx.exprList.accept(ExprListVisitor)
-      val call = positioned(ctx) { Call(receiver, id, args) }
-      ExprEval(call)
+      Call(receiver, id, args).setPos(id.pos).asExprEval
     }
 
     override def visitSkip(ctx: DecafParser.SkipContext): SimpleStmt = positioned(ctx) { Skip() }
   }
 
   object LValueVisitor extends DecafParserBaseVisitor[LValue] with Positioned {
-    override def visitLValueVar(ctx: DecafParser.LValueVarContext): LValue = positioned(ctx) {
+    override def visitLValueVar(ctx: DecafParser.LValueVarContext): LValue = {
       val receiver = if (ctx.expr != null) Some(ctx.expr.accept(ExprVisitor)) else None
       val id = ctx.id.accept(IdVisitor)
-      VarSel(receiver, id)
+      VarSel(receiver, id).setPos(id.pos)
     }
 
     override def visitLValueIndex(ctx: DecafParser.LValueIndexContext): LValue = positioned(ctx) {
@@ -258,21 +257,21 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       ClassTest(obj, clazz)
     }
 
-    override def visitSinglePath(ctx: DecafParser.SinglePathContext): Expr = positioned(ctx) {
+    override def visitSinglePath(ctx: DecafParser.SinglePathContext): Expr = {
       ctx.varSelOrCall.accept(this)
     }
 
     override def visitVarSelOrCall(ctx: DecafParser.VarSelOrCallContext): Expr = {
       val id = ctx.id.accept(IdVisitor)
-      if (ctx.exprList == null) VarSel(None, id)
-      else Call(None, id, ctx.exprList.accept(ExprListVisitor))
+      if (ctx.exprList == null) VarSel(None, id).setPos(id.pos)
+      else Call(None, id, ctx.exprList.accept(ExprListVisitor)).setPos(id.pos)
     }
 
-    override def visitPath(ctx: DecafParser.PathContext): Expr = positioned(ctx) {
-      val receiver = Some(ctx.expr.accept(this))
+    override def visitPath(ctx: DecafParser.PathContext): Expr = {
+      val receiver = ctx.expr.accept(this)
       ctx.varSelOrCall.accept(this) match {
-        case VarSel(None, id) => VarSel(receiver, id)
-        case Call(None, id, args) => Call(receiver, id, args)
+        case v: VarSel => v.withReceiver(receiver)
+        case c: Call => c.withReceiver(receiver)
       }
     }
 

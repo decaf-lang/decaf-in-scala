@@ -33,7 +33,9 @@ object SyntaxTree extends TreeTmpl {
     * @param receiver target instance
     * @param variable identifier of the selected variable
     */
-  case class VarSel(receiver: Option[Expr], variable: Id)(implicit val annot: ExprAnnot) extends LValue
+  case class VarSel(receiver: Option[Expr], variable: Id)(implicit val annot: ExprAnnot) extends LValue {
+    def withReceiver(receiver: Expr): VarSel = VarSel(Some(receiver), variable)(annot).setPos(pos)
+  }
 
   /**
     * Call expression:
@@ -45,6 +47,10 @@ object SyntaxTree extends TreeTmpl {
     * @param method   identifier of the selected method
     * @param args     arguments
     */
-  case class Call(receiver: Option[Expr], method: Id, args: List[Expr])(implicit val annot: ExprAnnot) extends Expr
+  case class Call(receiver: Option[Expr], method: Id, args: List[Expr])(implicit val annot: ExprAnnot) extends Expr {
+    def withReceiver(receiver: Expr): Call = Call(Some(receiver), method, args)(annot).setPos(pos)
+
+    def asExprEval: ExprEval = ExprEval(this)(annot).setPos(pos)
+  }
 
 }

@@ -1,9 +1,8 @@
 package decaf.frontend.annot
 
 import decaf.frontend.tree.SyntaxTree._
-import decaf.frontend.tree.TreeNode.{Def, Var}
-
-import decaf.parsing.Positional
+import decaf.frontend.tree.TreeNode.{Def, Id, Var}
+import decaf.parsing.{Pos, Positional}
 
 sealed trait Symbol extends Annot with Positional {
   type DefT <: Def
@@ -14,6 +13,8 @@ sealed trait Symbol extends Annot with Positional {
 
   val name: String = tree.name
   pos = tree.pos
+
+  var definedIn: Scope = _
 
   def str: String
 
@@ -92,13 +93,16 @@ class MethodSymbol(override protected val tree: MethodDef, override val typ: Fun
 
   scope.owner = this
 
-  override def str: String = (if (isStatic) "static " else "") + s"function $name : $typ"
+  override def str: String = (if (isStatic) "static " else "") + s"function $name : " +
+    (if (isStatic) "" else s"class : ${ owner.name }->") + typ.toString
 }
 
 class LocalVarSymbol(override val tree: Var, override val typ: Type, val isParam: Boolean = false)
   extends Symbol with VarSymbol {
   type DefT = Var
   type TypeT = Type
+
+  def this(typ: Type, pos: Pos) = this(LocalVarDef(TVoid(), Id("this")).setPos(pos), typ, true)
 
   override def str: String = s"variable " + (if (isParam) "@" else "") + s"$name : $typ"
 }

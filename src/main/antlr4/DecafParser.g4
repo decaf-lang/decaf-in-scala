@@ -105,7 +105,7 @@ expr
 lit
     : INT_LIT         # intLit
     | BOOL_LIT        # boolLit
-    | NULL            # nullLit
+    | NULL_LIT        # nullLit
     | OPEN_STRING stringChar* (CLOSE_STRING | UNTERM_STRING)    # stringLit
     ;
 
