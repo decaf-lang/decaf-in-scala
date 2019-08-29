@@ -18,7 +18,7 @@ object PA1Tree {
       printer.writeln(s"class $id ${ parent.getOrElse("<empty>") }")
       printer.withIndent { fields.foreach(pretty) }
     case VarDef(typeLit, id) => printer.writeln(s"vardef ${ id } ${ prettyType(typeLit) }")
-    case MethodDef(isStatic, returnType, id, params, body) =>
+    case MethodDef(id, params, returnType, body, isStatic) =>
       printer.writeln(s"${ if (isStatic) "static " else "" }func $id ${ prettyType(returnType) }")
       printer.withIndent {
         printer.writeln("formals")

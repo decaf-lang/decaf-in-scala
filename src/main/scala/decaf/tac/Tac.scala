@@ -1,148 +1,91 @@
 package decaf.tac
 
-import decaf.parsing.Util.quote
-
+/**
+  * Three Address Code. An Intermediate Representation (IR) as the input language of decaf's MIPS backend.
+  */
 object Tac {
 
   /**
-    * A top-level tac program consists of a list of virtual tables and functys.
+    * A top-level TAC program consists of a list of virtual tables and procedures.
     */
-  case class Program(vtbls: List[VTable], procs: List[Proc]) {
-    override def toString: String = (vtbls.map(_.toString) ++ procs.map(_.toString)).mkString("\n")
-  }
+  case class Program(vtbls: List[VTable], procs: List[Proc])
 
+  /**
+    * Instruction.
+    */
   trait Instr
 
   // Assignment
-  case class Move(dst: Temp, src: Temp) extends Instr {
-    override def toString: String = s"$dst = $src"
-  }
+  case class Move(dst: Temp, src: Temp) extends Instr
 
-  case class LoadVTbl(dst: Temp, vtbl: VTable) extends Instr {
-    override def toString: String = s"$dst = VTBL<${ vtbl.name }>"
-  }
+  case class LoadVTbl(dst: Temp, vtbl: VTable) extends Instr
 
-  case class LoadImm4(dst: Temp, int: ConstTemp) extends Instr {
-    override def toString: String = s"$dst = $int"
-  }
+  case class LoadImm4(dst: Temp, int: ConstTemp) extends Instr
 
-  case class LoadStrConst(dst: Temp, str: String) extends Instr {
-    override def toString: String = s"$dst = ${ quote(str) }"
-  }
+  case class LoadStrConst(dst: Temp, str: String) extends Instr
 
   // Arithmetic
-  case class Add(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 + $src2)"
-  }
+  case class Add(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Sub(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 - $src2)"
-  }
+  case class Sub(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Mul(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 * $src2)"
-  }
+  case class Mul(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Div(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 / $src2)"
-  }
+  case class Div(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Mod(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 % $src2)"
-  }
+  case class Mod(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Neg(dst: Temp, src: Temp) extends Instr {
-    override def toString: String = s"$dst = - $src"
-  }
+  case class Neg(dst: Temp, src: Temp) extends Instr
 
   // Logical & Compare
-  case class Equ(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 == $src2)"
-  }
+  case class Equ(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Neq(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 != $src2)"
-  }
+  case class Neq(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Les(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 < $src2)"
-  }
+  case class Les(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Leq(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 <= $src2)"
-  }
+  case class Leq(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Gtr(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 > $src2)"
-  }
+  case class Gtr(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class Geq(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 >= $src2)"
-  }
+  case class Geq(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class LAnd(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 && $src2)"
-  }
+  case class LAnd(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class LOr(dst: Temp, src1: Temp, src2: Temp) extends Instr {
-    override def toString: String = s"$dst = ($src1 || $src2)"
-  }
+  case class LOr(dst: Temp, src1: Temp, src2: Temp) extends Instr
 
-  case class LNot(dst: Temp, src: Temp) extends Instr {
-    override def toString: String = s"$dst = ! $src"
-  }
+  case class LNot(dst: Temp, src: Temp) extends Instr
 
   // Control flow
-  case class Branch(lbl: Label) extends Instr {
-    override def toString: String = s"branch $lbl"
-  }
+  case class Branch(lbl: Label) extends Instr
 
-  case class BEqZ(cond: Temp, lbl: Label) extends Instr {
-    override def toString: String = s"if ($cond == 0) branch $lbl"
-  }
+  case class BEqZ(cond: Temp, lbl: Label) extends Instr
 
-  case class BNeZ(cond: Temp, lbl: Label) extends Instr {
-    override def toString: String = s"if ($cond != 0) branch $lbl"
-  }
+  case class BNeZ(cond: Temp, lbl: Label) extends Instr
 
-  case class Ret(src: Temp) extends Instr {
-    override def toString: String = "return " + (if (src == null) "<empty>" else src.toString)
-  }
+  case class Ret(src: Temp = null) extends Instr
 
   // Procedure call
-  case class Parm(src: Temp) extends Instr {
-    override def toString: String = s"parm $src"
-  }
+  case class Parm(src: Temp) extends Instr
 
-  case class IndirectCall(dst: Temp, proc: Temp) extends Instr {
-    override def toString: String = (if (dst != null) s"$dst = " else "") + s"call $proc"
-  }
+  case class IndirectCall(dst: Temp, proc: Temp) extends Instr
 
-  case class DirectCall(dst: Temp, proc: Label) extends Instr {
-    override def toString: String = (if (dst != null) s"$dst = " else "") + s"call $proc"
-  }
+  case class DirectCall(dst: Temp, proc: Label) extends Instr
 
   // Memory access
-  case class Load(dst: Temp, base: Temp, offset: ConstTemp) extends Instr {
-    override def toString: String =
-      s"$dst = *" + (if (offset.value >= 0) s"($base + $offset)" else s"($base - ${ -offset.value })")
-  }
+  case class Load(dst: Temp, base: Temp, offset: ConstTemp) extends Instr
 
-  case class Store(src: Temp, base: Temp, offset: ConstTemp) extends Instr {
-    override def toString: String =
-      (if (offset.value >= 0) s"*($base + $offset)" else s"*($base - ${ -offset.value })") + s" = $src"
-  }
+  case class Store(src: Temp, base: Temp, offset: ConstTemp) extends Instr
 
   // Others
-  case class Mark(lbl: Label) extends Instr {
-    override def toString: String = s"$lbl:"
-  }
+  case class Mark(lbl: Label) extends Instr
 
-  case class Memo(memo: String = "") extends Instr {
-    override def toString: String = s"memo '$memo'"
-  }
+  case class Memo(memo: String = "") extends Instr
 
+  /**
+    * Instruction sequence, i.e. a list of instructions.
+    */
   type InstrSeq = List[Instr]
 
-  implicit def __singletonInstr__(ins: Instr): InstrSeq = List(ins)
+  implicit def oneInstrAsSingletonInstrSeq(ins: Instr): InstrSeq = List(ins)
 }

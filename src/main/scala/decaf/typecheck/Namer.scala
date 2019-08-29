@@ -165,7 +165,7 @@ trait Namer extends Util {
           case (_: MemberVarSymbol, _: VarSymbol) =>
             issue(new OverridingVarError(field.name, field.pos));
             None
-          case (suspect: MethodSymbol, m @ MethodDef(isStatic, returnType, id, params, body))
+          case (suspect: MethodSymbol, m @ MethodDef(id, params, returnType, body, isStatic))
             if !suspect.isStatic && !m.isStatic =>
             // Only non-static methods can be overriden, but the type signature must be equivalent.
             val ret = typeTypeLit(returnType)
@@ -180,7 +180,7 @@ trait Namer extends Util {
                 if (funType <= suspect.typ) { // override success TODO check spec
                   val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass, Some(suspect))
                   ctx.declare(symbol)
-                  Some(Named.MethodDef(isStatic, ret, id, typedParams, body)(symbol))
+                  Some(Named.MethodDef(id, typedParams, ret, body, isStatic)(symbol))
                 } else { // override failure
                   issue(new BadOverrideError(m.name, suspect.owner.name, m.pos))
                   None
@@ -202,7 +202,7 @@ trait Namer extends Util {
                 ctx.declare(symbol)
                 Some(Named.VarDef(lit, id)(symbol))
             }
-          case m @ MethodDef(isStatic, returnType, id, params, body) =>
+          case m @ MethodDef(id, params, returnType, body, isStatic) =>
             val rt = typeTypeLit(returnType)
             rt.typ match {
               case NoType => None
@@ -214,7 +214,7 @@ trait Namer extends Util {
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass)
                 ctx.declare(symbol)
-                Some(Named.MethodDef(isStatic, rt, id, typedParams, body)(symbol))
+                Some(Named.MethodDef(id, typedParams, rt, body, isStatic)(symbol))
             }
         }
     }

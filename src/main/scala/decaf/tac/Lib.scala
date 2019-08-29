@@ -2,13 +2,23 @@ package decaf.tac
 
 import decaf.annot._
 
+/**
+  * TAC "library" procedures.
+  */
 object Lib {
 
-  case class Intrinsic(name: String, numArgs: Int, typ: BaseType) {
+  /**
+    * Procedure descriptor/signature.
+    *
+    * @param name       procedure name
+    * @param numArgs    number of input arguments
+    * @param returnType return type
+    */
+  case class Intrinsic(name: String, numArgs: Int, returnType: BaseType) {
     val label: Label = Label.fresh(name)
   }
 
-  implicit def __getLabel__(self: Intrinsic): Label = self.label
+  implicit def getLabelOfIntrinsic(self: Intrinsic): Label = self.label
 
   object ALLOCATE extends Intrinsic("_Alloc", 1, IntType)
 

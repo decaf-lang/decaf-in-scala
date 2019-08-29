@@ -84,14 +84,13 @@ trait TopLevelTmpl {
     * }}}
     * Decaf has static methods but _no_ static variables, strange!
     *
-    * @param isStatic   is this method static?
-    * @param returnType return type
     * @param id         method identifier
     * @param params     parameters, each is a typed identifier (or _formal_, as said in the language specification)
+    * @param returnType return type
     * @param body       method body (a statement block, by syntactic grammar)
-    *
+    * @param isStatic   is this method static?
     */
-  case class MethodDef(isStatic: Boolean, returnType: TypeLit, id: Id, params: List[LocalVarDef], body: Stmt)
+  case class MethodDef(id: Id, params: List[LocalVarDef], returnType: TypeLit, body: Stmt, isStatic: Boolean)
                       (implicit val annot: MethodAnnot) extends Field with Annotated[MethodAnnot]
 
 }

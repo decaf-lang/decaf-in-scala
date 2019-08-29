@@ -4,12 +4,18 @@ import decaf.annot.SymbolImplicit._
 import decaf.annot.TypeImplicit._
 import decaf.annot._
 import decaf.driver.{Config, Phase}
+import decaf.printing.{IndentPrinter, PrettyTac}
 import decaf.tac.Tac._
 import decaf.tree.TreeNode
 import decaf.tree.TypedTree._
 
 import scala.collection.mutable
 
+/**
+  * TAC generation. Transform a typed tree to a TAC program.
+  *
+  * Compiler phase: tacgen, depends on phase typer.
+  */
 class TacGen extends Phase[Tree, Program]("tacgen") with Util {
 
   type ClassVTables = mutable.HashMap[ClassSymbol, VTable]
@@ -23,11 +29,17 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     val label: MethodLabels = new MethodLabels
   }
 
+  /**
+    * Entry.
+    *
+    * @param tree a typed tree
+    * @return a TAC program
+    */
   override def transform(tree: Tree): Program = {
     val classes = tree.classes
     implicit val ctx = new GlobalContext
 
-    // Generate labels for every method
+    // Generate labels for every method.
     classes.foreach { clazz =>
       ctx.label(clazz.symbol) = Label.fresh(s"_${ clazz.name }_New") // the "New" method for initialization
       clazz.symbol.methods.foreach { method => // the real methods defined in the program
@@ -35,19 +47,33 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
       }
     }
 
-    // Generate vtables and assign offsets to every member method
+    // Generate vtables and assign offsets to every member method.
     classes.foreach { clazz => genVTableAndOffsets(clazz.symbol) }
 
-    // Generate the default static "New" method for every class
+    // Generate the default static "New" method for every class.
     val procs1 = classes.map { clazz => genNewProc(clazz.symbol) }
 
-    // Generate all static and member methods defined in the program
+    // Generate all static and member methods defined in the program.
     val procs2 = for {
       clazz <- classes
       method <- clazz.methods
     } yield genProc(method)
 
     Program(ctx.vtbl.values.toList, procs1 ++ procs2)
+  }
+
+  /**
+    * After generating TAC, pretty print the TAC script if necessary.
+    *
+    * @param program the TAC program
+    * @param config  the compiler configuration
+    */
+  override def post(program: Program)(implicit config: Config): Unit = {
+    if (config.target == Config.Target.PA3) {
+      implicit val printer: IndentPrinter = new IndentPrinter
+      PrettyTac.pretty(program)
+      config.outputStream.print(printer.toString)
+    }
   }
 
   def genVTableAndOffsets(clazz: ClassSymbol)(implicit ctx: GlobalContext): Unit = {
@@ -218,19 +244,12 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
       val actuals = receiver :: args
       val es = actuals.map(emitExpr)
       es.flatMap(_.seq) || load(es.head) >> loadWith(ctx.offset(method)) >> indirectCall(es.map(_.value))
-
     case ClassTest(obj, clazz) =>
       if (obj.typ <= clazz.typ) load(1)
       else emitExpr(obj) >> classTest(ctx.vtbl(clazz))
     case ClassCast(obj, clazz) => emitExpr(obj) >> { o =>
       if (obj.typ <= clazz.typ) o
       else classCast(o, ctx.vtbl(clazz))
-    }
-  }
-
-  override def post(program: Program)(implicit config: Config): Unit = {
-    if (config.target == Config.Target.PA3) {
-      config.outputStream.print(program.toString)
     }
   }
 }

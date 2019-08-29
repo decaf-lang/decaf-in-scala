@@ -62,11 +62,11 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
         val ctx = global.open(symbol.scope)
         val checkedFields = fields.map {
           case v @ Named.VarDef(typeLit, id) => Typed.VarDef(typeLit, id)(v.symbol).setPos(v.pos)
-          case f @ Named.MethodDef(isStatic, returnType, id, params, body) =>
+          case f @ Named.MethodDef(id, params, returnType, body, isStatic) =>
             val localCtx = ctx.open(f.symbol.scope)
             val checkedBody = checkStmt(body)(State(), localCtx)
             // FIXME check every path is returned, if its return type is not void
-            Typed.MethodDef(isStatic, returnType, id, params, checkedBody)(f.symbol).setPos(f.pos)
+            Typed.MethodDef(id, params, returnType, checkedBody, isStatic)(f.symbol).setPos(f.pos)
         }
         Typed.ClassDef(id, parent, checkedFields)(symbol).setPos(clazz.pos)
     }

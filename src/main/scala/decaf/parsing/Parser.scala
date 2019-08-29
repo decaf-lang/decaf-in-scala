@@ -135,7 +135,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       val params =
         if (ctx.varList == null) Nil else ctx.varList.`var`.asScala.toList.map(_.accept(LocalVarDefVisitor))
       val body = ctx.stmtBlock.accept(StmtVisitor)
-      MethodDef(ctx.STATIC != null, returnType, id, params, body).setPos(id.pos)
+      MethodDef(id, params, returnType, body, ctx.STATIC != null).setPos(id.pos)
     }
   }
 
