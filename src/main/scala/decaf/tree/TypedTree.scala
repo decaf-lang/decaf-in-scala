@@ -70,13 +70,13 @@ object TypedTree extends TreeTmpl {
 
   case class UntypedExpr(expr: SyntaxTree.Expr)(implicit val annot: ExprAnnot = NoType) extends Expr
 
-  implicit def syntaxTreeExprAsUntyped(expr: SyntaxTree.Expr): UntypedExpr = UntypedExpr(expr)
+  implicit def syntaxTreeExprAsUntyped(expr: SyntaxTree.Expr): UntypedExpr = UntypedExpr(expr).setPos(expr.pos)
 
   implicit def syntaxTreeExprListAsUntyped(exprs: List[SyntaxTree.Expr]): List[UntypedExpr] =
-    exprs.map { e => UntypedExpr(e) }
+    exprs.map { e => UntypedExpr(e).setPos(e.pos) }
 
   implicit def syntaxTreeExprOptionAsUntyped(expr: Option[SyntaxTree.Expr]): Option[UntypedExpr] =
-    expr.map { e => UntypedExpr(e) }
+    expr.map { e => UntypedExpr(e).setPos(e.pos) }
 
   case class UntypedLValue(expr: SyntaxTree.LValue)(implicit val annot: ExprAnnot = NoType) extends LValue
 

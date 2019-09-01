@@ -28,12 +28,18 @@ GLOBAL SCOPE:
             (34,28) -> variable @a : int[]
             LOCAL SCOPE:
                 (35,13) -> variable i : int
+                LOCAL SCOPE:
         FORMAL SCOPE OF 'printBoard':
             (45,10) -> variable @this : class : NQueues
             (45,27) -> variable @col : int[]
             (45,36) -> variable @N : int
             LOCAL SCOPE:
                 (46,13) -> variable i : int
+                LOCAL SCOPE:
+                    (50,17) -> variable j : int
+                    LOCAL SCOPE:
+                        LOCAL SCOPE:
+                        LOCAL SCOPE:
         FORMAL SCOPE OF 'try':
             (65,10) -> variable @this : class : NQueues
             (65,18) -> variable @c : int
@@ -44,3 +50,7 @@ GLOBAL SCOPE:
             LOCAL SCOPE:
                 (66,13) -> variable N : int
                 (67,13) -> variable r : int
+                LOCAL SCOPE:
+                LOCAL SCOPE:
+                    LOCAL SCOPE:
+                        LOCAL SCOPE:

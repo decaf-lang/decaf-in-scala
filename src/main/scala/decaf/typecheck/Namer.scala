@@ -224,11 +224,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
   }
 
   def resolveBlock(block: Block)(implicit ctx: ScopeContext): Typed.Block = {
-    val scope = ctx.currentScope match {
-      case s: FormalScope => s.nestedScope
-      case _: LocalScope => new LocalScope
-    }
-    val local = ctx.open(scope)
+    val local = ctx.open(new LocalScope)
     val ss = block.stmts.map { resolveStmt(_)(local) }
     Typed.Block(ss).setPos(block.pos)
   }
@@ -252,5 +248,28 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
       case Print(exprs) => Typed.Print(exprs)
     }
     checked.setPos(stmt.pos)
+  }
+
+  def resolveLocalVarDef(v: LocalVarDef)
+                        (implicit ctx: ScopeContext, isParam: Boolean = false): Option[Typed.LocalVarDef] = {
+    ctx.findConflict(v.name) match {
+      case Some(earlier) =>
+        issue(new DeclConflictError(v.name, earlier.pos, v.pos))
+        None
+      case None =>
+        val typedTypeLit = typeTypeLit(v.typeLit)
+        typedTypeLit.typ match {
+          case NoType =>
+            // NOTE: to avoid flushing a large number of error messages, if we know one error is caused by another,
+            // then we shall not report both, but the earlier found one only. In this case, the error of the entire
+            // LocalVarDef is caused by the bad typeLit, and thus we don't make further type check.
+            None
+          case VoidType => issue(new BadVarTypeError(v.name, v.pos)); None
+          case t =>
+            val symbol = new LocalVarSymbol(v, t, isParam)
+            ctx.declare(symbol)
+            Some(Typed.LocalVarDef(typedTypeLit, v.id)(symbol))
+        }
+    }
   }
 }

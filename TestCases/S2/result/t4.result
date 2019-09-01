@@ -16,5 +16,8 @@ GLOBAL SCOPE:
                 (12,13) -> variable a : int
                 (13,14) -> variable b : bool
                 (14,15) -> variable d : int[]
+                LOCAL SCOPE:
+                    (17,13) -> variable array : int[]
+                    LOCAL SCOPE:
         FORMAL SCOPE OF 'main':
             LOCAL SCOPE:

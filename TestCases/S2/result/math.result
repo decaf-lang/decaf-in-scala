@@ -10,24 +10,33 @@ GLOBAL SCOPE:
         FORMAL SCOPE OF 'abs':
             (2,24) -> variable @a : int
             LOCAL SCOPE:
+                LOCAL SCOPE:
+                LOCAL SCOPE:
         FORMAL SCOPE OF 'pow':
             (10,24) -> variable @a : int
             (10,31) -> variable @b : int
             LOCAL SCOPE:
                 (11,13) -> variable i : int
                 (12,13) -> variable result : int
+                LOCAL SCOPE:
         FORMAL SCOPE OF 'log':
             (20,24) -> variable @a : int
             LOCAL SCOPE:
                 (24,13) -> variable result : int
+                LOCAL SCOPE:
+                LOCAL SCOPE:
         FORMAL SCOPE OF 'max':
             (33,24) -> variable @a : int
             (33,31) -> variable @b : int
             LOCAL SCOPE:
+                LOCAL SCOPE:
+                LOCAL SCOPE:
         FORMAL SCOPE OF 'min':
             (41,24) -> variable @a : int
             (41,31) -> variable @b : int
             LOCAL SCOPE:
+                LOCAL SCOPE:
+                LOCAL SCOPE:
     CLASS SCOPE OF 'Main':
         (51,17) -> static function main : void
         FORMAL SCOPE OF 'main':

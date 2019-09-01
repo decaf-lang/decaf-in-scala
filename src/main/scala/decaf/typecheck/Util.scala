@@ -2,7 +2,7 @@ package decaf.typecheck
 
 import decaf.annot.TypeImplicit._
 import decaf.annot._
-import decaf.error.{BadArrElementError, ClassNotFoundError, DeclConflictError, ErrorIssuer}
+import decaf.error._
 import decaf.tree.SyntaxTree._
 import decaf.tree.{TypedTree => Typed}
 
@@ -30,20 +30,5 @@ trait Util extends ErrorIssuer {
         Typed.TArray(typedElemType)(typ)
     }
     typed.setPos(typeLit.pos)
-  }
-
-  // FIXME: merge with typer's
-  def resolveLocalVarDef(v: LocalVarDef)
-                        (implicit ctx: ScopeContext, isParam: Boolean = false): Option[Typed.LocalVarDef] = {
-    val t = typeTypeLit(v.typeLit)
-    ctx.findConflict(v.name) match {
-      case Some(earlier) =>
-        issue(new DeclConflictError(v.name, earlier.pos, v.pos))
-        None
-      case None =>
-        val symbol = new LocalVarSymbol(v, t.typ, isParam)
-        ctx.declare(symbol)
-        Some(Typed.LocalVarDef(t, v.id)(symbol))
-    }
   }
 }

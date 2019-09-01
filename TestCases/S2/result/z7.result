@@ -9,6 +9,7 @@ GLOBAL SCOPE:
             (4,9) -> variable @this : class : Father
             (4,20) -> variable @f : int
             LOCAL SCOPE:
+                LOCAL SCOPE:
     CLASS SCOPE OF 'Child':
         (14,10) -> function start : class : Child->void
         FORMAL SCOPE OF 'start':

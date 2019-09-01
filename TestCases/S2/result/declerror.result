@@ -6,5 +6,3 @@
 *** Error at (33,16): declaration of 'b' here conflicts with earlier declaration at (21,9)
 *** Error at (37,10): declaration of 'func' here conflicts with earlier declaration at (23,17)
 *** Error at (40,9): declaration of 'func1' here conflicts with earlier declaration at (26,10)
-*** Error at (43,1): declaration of 'A' here conflicts with earlier declaration at (18,1)
-*** Error at (46,1): class 'D' not found

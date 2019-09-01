@@ -10,6 +10,7 @@ GLOBAL SCOPE:
             (3,20) -> variable @numTimes : int
             LOCAL SCOPE:
                 (4,13) -> variable i : int
+                LOCAL SCOPE:
     CLASS SCOPE OF 'Mac':
         (11,9) -> variable mouse : int
         (12,10) -> function Crash : class : Mac->int->void

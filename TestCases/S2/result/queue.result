@@ -53,9 +53,16 @@ GLOBAL SCOPE:
             (43,9) -> variable @this : class : Queue
             LOCAL SCOPE:
                 (44,13) -> variable val : int
+                LOCAL SCOPE:
+                LOCAL SCOPE:
+                    (49,29) -> variable temp : class : QueueItem
     CLASS SCOPE OF 'Main':
         (60,17) -> static function main : void
         FORMAL SCOPE OF 'main':
             LOCAL SCOPE:
                 (61,21) -> variable q : class : Queue
                 (62,13) -> variable i : int
+                LOCAL SCOPE:
+                LOCAL SCOPE:
+                LOCAL SCOPE:
+                LOCAL SCOPE:

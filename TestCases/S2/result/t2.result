@@ -7,3 +7,4 @@ GLOBAL SCOPE:
                 (4,13) -> variable a : int
                 (5,16) -> variable b : string
                 (6,14) -> variable c : bool
+                LOCAL SCOPE:

@@ -30,3 +30,9 @@ class B extends A {
     class B func3(class A a) {
     }
 }
+
+class C1 extends C2 {
+}
+
+class C2 extends C1 {
+}

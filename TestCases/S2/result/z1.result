@@ -18,6 +18,15 @@ GLOBAL SCOPE:
         FORMAL SCOPE OF 'printType':
             (25,38) -> variable @base : class : Base
             LOCAL SCOPE:
+                LOCAL SCOPE:
+                LOCAL SCOPE:
+                    LOCAL SCOPE:
+                    LOCAL SCOPE:
+                        LOCAL SCOPE:
+                        LOCAL SCOPE:
+                            LOCAL SCOPE:
+                            LOCAL SCOPE:
+                                LOCAL SCOPE:
     CLASS SCOPE OF 'Base':
     CLASS SCOPE OF 'Sub1':
     CLASS SCOPE OF 'Sub2':
