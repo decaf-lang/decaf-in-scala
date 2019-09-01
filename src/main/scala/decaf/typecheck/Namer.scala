@@ -177,7 +177,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
                 if (!isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
                 val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
-                if (funType <= suspect.typ) { // override success TODO check spec
+                if (funType <= suspect.typ) { // override success
                   val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass, Some(suspect))
                   ctx.declare(symbol)
                   val block = resolveBlock(body)(formalCtx)
@@ -222,6 +222,8 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
     }
     resolved.map(_.setPos(field.pos))
   }
+
+  implicit val noReturn: Flag = No
 
   def resolveBlock(block: Block)(implicit ctx: ScopeContext): Typed.Block = {
     val local = ctx.open(new LocalScope)

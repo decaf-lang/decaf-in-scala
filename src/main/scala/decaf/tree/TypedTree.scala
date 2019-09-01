@@ -18,7 +18,7 @@ object TypedTree extends TreeTmpl {
   type LocalVarAnnot = LocalVarSymbol
   type MethodAnnot = MethodSymbol
   type TypeLitAnnot = Type
-  type StmtAnnot = SyntaxTree.No
+  type StmtAnnot = Flag
   type BlockAnnot = LocalScope
   type ExprAnnot = Type
 

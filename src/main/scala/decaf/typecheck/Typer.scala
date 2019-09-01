@@ -3,6 +3,7 @@ package decaf.typecheck
 import decaf.annot.ScopeImplicit._
 import decaf.annot.SymbolImplicit._
 import decaf.annot.TypeImplicit._
+import decaf.annot.FlagImplicit._
 import decaf.annot._
 import decaf.driver.{Config, Phase}
 import decaf.error._
@@ -61,11 +62,13 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         val ctx = global.open(symbol.scope)
         val checkedFields = fields.map {
           case v: VarDef => v
-          case f @ MethodDef(id, params, returnType, body, isStatic) =>
-            val formalCtx = ctx.open(f.symbol.scope)
+          case m @ MethodDef(id, params, returnType, body, isStatic) =>
+            val formalCtx = ctx.open(m.symbol.scope)
             val checkedBody = checkBlock(body)(formalCtx)
-            // FIXME check every path is returned, if its return type is not void
-            MethodDef(id, params, returnType, checkedBody, isStatic)(f.symbol).setPos(f.pos)
+            // Check if the body always returns a value, when the method is non-void
+            if (!m.symbol.returnType.isVoidType && checkedBody.no)
+              issue(new MissingReturnError(checkedBody.pos))
+            MethodDef(id, params, returnType, checkedBody, isStatic)(m.symbol).setPos(m.pos)
         }
         ClassDef(id, parent, checkedFields)(symbol).setPos(clazz.pos)
     }
@@ -96,10 +99,17 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
     }
     val local = ctx.open(scope)
     val ss = block.stmts.map { checkStmt(_)(local, insideLoop) }
-    Block(ss).setPos(block.pos)
+    val ret = if (ss.isEmpty) No else ss.last match {
+      case c: ControlFlowStmt => c.flag // a block returns a value if its last statement does so
+      case _ => No
+    }
+
+    Block(ss)(ret).setPos(block.pos)
   }
 
   def checkStmt(stmt: Stmt)(implicit ctx: ScopeContext, insideLoop: Boolean): Stmt = {
+    implicit val noReturn: Flag = No
+
     val checked = stmt match {
       case block: Block => checkBlock(block)
 
@@ -126,7 +136,9 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         val c = checkTestExpr(cond)
         val t = checkBlock(trueBranch)
         val f = falseBranch.map(checkBlock)
-        If(c, t, f)
+        // if-stmt returns a value if both branches return
+        val ret = if (t.yes && f.isDefined && f.get.yes) Yes else No
+        If(c, t, f)(ret)
 
       case While(cond, body) =>
         val c = checkTestExpr(cond)
@@ -152,7 +164,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         }
         val actual = e.map(_.typ).getOrElse(VoidType)
         if (actual.noError && !(actual <= expected)) issue(new BadReturnTypeError(expected, actual, stmt.pos))
-        Return(e)
+        Return(e)(Yes) // returned
 
       case Print(exprs) =>
         val es = exprs.zipWithIndex.map {
@@ -315,7 +327,6 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
               if (ctx.currentMethod.isStatic) // member vars cannot be accessed in a static method
                 issue(new RefNonStaticError(id, ctx.currentMethod.name, expr.pos))
               MemberVar(This(), v)(v.typ)
-            // TODO report error: method and types are not allowed here
             case _ => issue(new UndeclVarError(id, expr.pos)); err
           }
           case None => issue(new UndeclVarError(id, expr.pos)); err
@@ -337,7 +348,6 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
                   if (!(ctx.currentClass.typ <= t)) // member vars are protected
                     issue(new FieldNotAccessError(id, t, expr.pos))
                   MemberVar(r, v)(v.typ)
-                // case m: MethodSymbol => TODO report error: method and types are not allowed here
                 case _ => issue(new FieldNotFoundError(id, t, expr.pos)); err
               }
               case None => issue(new FieldNotFoundError(id, t, expr.pos)); err

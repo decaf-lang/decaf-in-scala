@@ -69,6 +69,9 @@ class BadPrintArgError(k: Int, actual: Type, pos: Pos)
 class BadReturnTypeError(expected: Type, actual: Type, pos: Pos)
   extends Error(s"incompatible return: $actual given, $expected expected", pos)
 
+class MissingReturnError(pos: Pos)
+  extends Error("missing return statement: control reaches end of non-void block", pos)
+
 class IncompatUnOpError(op: String, exprType: Type, pos: Pos)
   extends Error(s"incompatible operand: $op $exprType", pos)
 

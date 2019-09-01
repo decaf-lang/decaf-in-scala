@@ -1,0 +1,19 @@
+class Main {
+    int fun1() { }
+
+    int fun2(int x) {
+        while (true) {
+            if (x == 1) return 3;
+        }
+    }
+
+    int abs_fun(int x) {
+        if (x < 0)
+            return -x;
+        else if (x >= 0)
+            return x;
+    }
+
+    static void main() {
+    }
+}
