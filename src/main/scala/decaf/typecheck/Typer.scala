@@ -159,7 +159,7 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
       case If(cond, trueBranch, falseBranch) =>
         val c = checkTestExpr(cond)
         val t = checkStmt(trueBranch)(state.setNotInBlock(), ctx)
-        val f = checkStmt(falseBranch)(state.setNotInBlock(), ctx)
+        val f = falseBranch.map(checkStmt(_)(state.setNotInBlock(), ctx))
         Typed.If(c, t, f)
 
       case While(cond, body) =>

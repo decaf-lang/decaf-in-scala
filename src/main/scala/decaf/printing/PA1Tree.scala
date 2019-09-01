@@ -46,9 +46,10 @@ object PA1Tree {
         pretty(cond)
         pretty(trueBranch)
       }
-      if (!falseBranch.isEmpty) {
-        printer.writeln("else")
-        printer.withIndent { pretty(falseBranch) }
+      falseBranch.foreach {
+        branch =>
+          printer.writeln("else")
+          printer.withIndent { pretty(branch) }
       }
     case While(cond, body) =>
       printer.writeln("while")

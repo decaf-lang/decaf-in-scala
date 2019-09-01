@@ -231,9 +231,9 @@ trait TreeTmpl extends TopLevelTmpl {
     *
     * @param cond        condition
     * @param trueBranch  body to execute if condition holds
-    * @param falseBranch body to execute if condition does NOT hold
+    * @param falseBranch body to execute if condition does NOT hold (do nothing if not given)
     */
-  case class If(cond: Expr, trueBranch: Stmt, falseBranch: Stmt)(implicit val annot: StmtAnnot)
+  case class If(cond: Expr, trueBranch: Stmt, falseBranch: Option[Stmt])(implicit val annot: StmtAnnot)
     extends ControlFlowStmt
 
   /**

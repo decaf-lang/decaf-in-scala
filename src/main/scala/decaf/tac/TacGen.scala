@@ -6,7 +6,7 @@ import decaf.annot._
 import decaf.driver.{Config, Phase}
 import decaf.printing.{IndentPrinter, PrettyTac}
 import decaf.tac.Tac._
-import decaf.tree.TreeNode
+import decaf.tree.{TreeNode, TypedTree}
 import decaf.tree.TypedTree._
 
 import scala.collection.mutable
@@ -175,7 +175,7 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     case Skip() => Nil
 
     case If(cond, trueBranch, falseBranch) =>
-      emitExpr(cond) >| ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch))
+      emitExpr(cond) >| ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch.getOrElse(TypedTree.Block())))
     case While(cond, body) =>
       val exit = Label.fresh()
       loop(emitExpr(cond), exit) { emitStmt(body)(exit :: loopExits, ctx) }

@@ -4,7 +4,7 @@ import decaf.driver.{Config, Phase}
 import decaf.annot.SymbolImplicit._
 import decaf.annot.TypeImplicit._
 import decaf.annot.{ArrayType, JNativeType, LocalVarSymbol}
-import decaf.tree.TreeNode
+import decaf.tree.{TreeNode, TypedTree}
 import decaf.tree.TreeNode.{ArithOp, EqOrCmpOp}
 import decaf.tree.TypedTree._
 import org.objectweb.asm.{ClassWriter, Label, MethodVisitor, Opcodes}
@@ -149,7 +149,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
 
     case If(cond, trueBranch, falseBranch) =>
       emitExpr(cond)
-      ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch))
+      ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch.getOrElse(TypedTree.Block())))
     case While(cond, body) =>
       val exit = new Label
       loop(emitExpr(cond), exit) { emitStmt(body)(mv, exit :: loopExits, ctx) }
