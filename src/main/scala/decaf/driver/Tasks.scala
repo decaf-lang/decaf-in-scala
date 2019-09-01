@@ -6,7 +6,7 @@ import decaf.jvm.{JVMClass, JVMGen}
 import decaf.parsing.Parser
 import decaf.tac.{Tac, TacGen}
 import decaf.tree.TypedTree
-import decaf.typecheck.Typer
+import decaf.typecheck.{Namer, Typer}
 
 class Tasks(implicit val opt: Config) {
 
@@ -26,7 +26,7 @@ class Tasks(implicit val opt: Config) {
 
   val parse = TNil(new Parser)
 
-  val typeCheck: Task[InputStream, TypedTree.Tree] = parse >> new Typer
+  val typeCheck: Task[InputStream, TypedTree.Tree] = parse >> new Namer >> new Typer
 
   val tac: Task[InputStream, Tac.Program] = typeCheck >> new TacGen
 

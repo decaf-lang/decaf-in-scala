@@ -34,9 +34,9 @@ object TreeNode {
     * A general form of variable declaration: it consists of a type literal indicating its type, and an identifier.
     */
   trait Var extends Def {
-    type TypeLitT <: Node
+    type TypeLitType <: Node
 
-    val typeLit: TypeLitT
+    val typeLit: TypeLitType
   }
 
   /**

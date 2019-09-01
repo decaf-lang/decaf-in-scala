@@ -175,7 +175,7 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     case Skip() => Nil
 
     case If(cond, trueBranch, falseBranch) =>
-      emitExpr(cond) >| ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch.getOrElse(TypedTree.Block())))
+      emitExpr(cond) >| ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch.getOrElse(TypedTree.Block()(null))))
     case While(cond, body) =>
       val exit = Label.fresh()
       loop(emitExpr(cond), exit) { emitStmt(body)(exit :: loopExits, ctx) }

@@ -149,7 +149,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
 
     case If(cond, trueBranch, falseBranch) =>
       emitExpr(cond)
-      ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch.getOrElse(TypedTree.Block())))
+      ifThenElse(emitStmt(trueBranch), emitStmt(falseBranch.getOrElse(TypedTree.Block()(null))))
     case While(cond, body) =>
       val exit = new Label
       loop(emitExpr(cond), exit) { emitStmt(body)(mv, exit :: loopExits, ctx) }

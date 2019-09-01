@@ -19,6 +19,7 @@ object TypedTree extends TreeTmpl {
   type MethodAnnot = MethodSymbol
   type TypeLitAnnot = Type
   type StmtAnnot = SyntaxTree.No
+  type BlockAnnot = LocalScope
   type ExprAnnot = Type
 
   type ClassRef = ClassSymbol
@@ -65,4 +66,27 @@ object TypedTree extends TreeTmpl {
     */
   case class ArrayLen(array: Expr)(implicit val annot: ExprAnnot) extends Expr
 
+  // Black magic to handle expressions that are not typed yet!
+
+  case class UntypedExpr(expr: SyntaxTree.Expr)(implicit val annot: ExprAnnot = NoType) extends Expr
+
+  implicit def syntaxTreeExprAsUntyped(expr: SyntaxTree.Expr): UntypedExpr = UntypedExpr(expr)
+
+  implicit def syntaxTreeExprListAsUntyped(exprs: List[SyntaxTree.Expr]): List[UntypedExpr] =
+    exprs.map { e => UntypedExpr(e) }
+
+  implicit def syntaxTreeExprOptionAsUntyped(expr: Option[SyntaxTree.Expr]): Option[UntypedExpr] =
+    expr.map { e => UntypedExpr(e) }
+
+  case class UntypedLValue(expr: SyntaxTree.LValue)(implicit val annot: ExprAnnot = NoType) extends LValue
+
+  implicit def syntaxTreeLValueAsUntyped(expr: SyntaxTree.LValue): UntypedLValue = UntypedLValue(expr)
+
+  implicit def typedExprAsSyntaxTreeExpr(wrap: Expr): SyntaxTree.Expr = {
+    wrap.asInstanceOf[UntypedExpr].expr
+  }
+
+  implicit def typedLValueAsSyntaxTreeLValue(wrap: LValue): SyntaxTree.LValue = {
+    wrap.asInstanceOf[UntypedLValue].expr
+  }
 }

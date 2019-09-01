@@ -32,6 +32,7 @@ object SyntaxTree extends TreeTmpl {
   type MethodAnnot = No
   type TypeLitAnnot = No
   type StmtAnnot = No
+  type BlockAnnot = No
   type ExprAnnot = No
 
   type ClassRef = Id

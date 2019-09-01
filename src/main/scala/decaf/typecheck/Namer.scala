@@ -3,30 +3,30 @@ package decaf.typecheck
 import decaf.annot.SymbolImplicit._
 import decaf.annot.TypeImplicit._
 import decaf.annot._
+import decaf.driver.Phase
 import decaf.error._
 import decaf.tree.SyntaxTree._
 import decaf.tree.TreeNode._
-import decaf.tree.{NamedTree => Named}
+import decaf.tree.{TypedTree => Typed}
 
 import scala.collection.mutable
 
 /**
-  * The namer inputs a SyntaxTree and outputs a NamedTree. In this phase, we focus on resolving class definitions,
-  * including resolving their member variables and methods, but leave the checking of method body to the typer.
-  *
-  * The entry of type check is defined in Typer.scala.
-  *
-  * Namer will NOT be interrupted by resolve errors. Instead, we simply drop any field that cannot be resolved.
-  * If a class has bad inheritance, we make it extend nothing.
+  * The namer inputs a SyntaxTree and outputs a NamedTree. In this phase, we focus on resolving all definitions, and
+  * leave the type check to the typer. In details, the following are resolved and checked:
+  * - class inheritance
+  * - method overriding
+  * - class member declarations: including variables and method signatures
+  * - local variable declarations
   */
-trait Namer extends Util {
+class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
 
   class Context {
     val global: GlobalScope = new GlobalScope
     val classes: mutable.HashMap[String, ClassDef] = new mutable.HashMap
   }
 
-  def resolveTree(tree: Tree): Named.Tree = {
+  override def transform(tree: Tree): Typed.Tree = {
     implicit val ctx = new Context
 
     // Check conflicting definitions. If any, ignore the redefined ones.
@@ -49,10 +49,10 @@ trait Namer extends Util {
         }
     }
 
-    // Make sure any inheritance does not form a cycle. If so, eliminate the cycle by cutting an edge on the cycle.
-    // Example: suppose A extends B, B extends C and C extends A, then we see A -> B -> C -> A forms a cycle.
-    // We cut the last edge C -> A by detaching C's parent.
-    eliminateCycles()
+    // Make sure any inheritance does not form a cycle.
+    checkCycles()
+    // If so, return with errors.
+    if (hasError) return Typed.TopLevel(Nil)(ctx.global)
 
     // So far, class inheritance is well-formed, i.e. inheritance relations form a forest of trees. Now we need to
     // resolve every class definition, make sure that every member (variables and methods) is well-typed.
@@ -63,7 +63,7 @@ trait Namer extends Util {
     createClassSymbols()
 
     // Now, we can resolve every class definition to fill in its class scope table. To check if the overriding
-    // behaves correctly, we should first resolve a base class and then its subclasses.
+    // behaves correctly, we should first resolve super class and then its subclasses.
     val resolvedClasses = resolveClasses
 
     // Finally, let's locate the main class, whose name is 'Main', and contains a method like:
@@ -81,10 +81,10 @@ trait Namer extends Util {
       case None => issue(NoMainClassError)
     }
 
-    Named.TopLevel(resolvedClasses)(ctx.global).setPos(tree.pos)
+    Typed.TopLevel(resolvedClasses)(ctx.global).setPos(tree.pos)
   }
 
-  private def eliminateCycles()(implicit ctx: Context): Unit = {
+  private def checkCycles()(implicit ctx: Context): Unit = {
     val visitedTime = new mutable.HashMap[String, Int]
     ctx.classes.keys.foreach { visitedTime(_) = 0 }
 
@@ -99,7 +99,7 @@ trait Namer extends Util {
         }
       } else if (visitedTime(node) == time) { // find a cycle
         issue(new BadInheritanceError(from.pos))
-        ctx.classes(from.name) = from.parentDetached
+        // ctx.classes(from.name) = from.parentDetached
       } // else: this node is visited earlier, also done
     }
 
@@ -135,8 +135,8 @@ trait Namer extends Util {
     ctx.classes.values.foreach(create)
   }
 
-  def resolveClasses(implicit ctx: Context): List[Named.ClassDef] = {
-    val resolved = new mutable.HashMap[String, Named.ClassDef]
+  def resolveClasses(implicit ctx: Context): List[Typed.ClassDef] = {
+    val resolved = new mutable.HashMap[String, Typed.ClassDef]
 
     def resolve(clazz: ClassDef): Unit = {
       if (!resolved.contains(clazz.name)) {
@@ -150,7 +150,7 @@ trait Namer extends Util {
 
         implicit val classCtx: ScopeContext = new ScopeContext(ctx.global).open(symbol.scope)
         val fs = clazz.fields.flatMap(resolveField)
-        resolved(clazz.name) = Named.ClassDef(clazz.id, symbol.parent, fs)(symbol).setPos(clazz.pos)
+        resolved(clazz.name) = Typed.ClassDef(clazz.id, symbol.parent, fs)(symbol).setPos(clazz.pos)
       }
     }
 
@@ -158,12 +158,12 @@ trait Namer extends Util {
     ctx.classes.keys.map(resolved).toList
   }
 
-  def resolveField(field: Field)(implicit ctx: ScopeContext): Option[Named.Field] = {
+  def resolveField(field: Field)(implicit ctx: ScopeContext): Option[Typed.Field] = {
     val resolved = ctx.findConflict(field.name) match {
       case Some(earlier) =>
         (earlier, field) match {
           case (_: MemberVarSymbol, _: VarSymbol) =>
-            issue(new OverridingVarError(field.name, field.pos));
+            issue(new OverridingVarError(field.name, field.pos))
             None
           case (suspect: MethodSymbol, m @ MethodDef(id, params, returnType, body, isStatic))
             if !suspect.isStatic && !m.isStatic =>
@@ -180,7 +180,8 @@ trait Namer extends Util {
                 if (funType <= suspect.typ) { // override success TODO check spec
                   val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass, Some(suspect))
                   ctx.declare(symbol)
-                  Some(Named.MethodDef(id, typedParams, ret, body, isStatic)(symbol))
+                  val block = resolveBlock(body)(formalCtx)
+                  Some(Typed.MethodDef(id, typedParams, ret, block, isStatic)(symbol))
                 } else { // override failure
                   issue(new BadOverrideError(m.name, suspect.owner.name, m.pos))
                   None
@@ -200,7 +201,7 @@ trait Namer extends Util {
               case t =>
                 val symbol = new MemberVarSymbol(v, t, ctx.currentClass)
                 ctx.declare(symbol)
-                Some(Named.VarDef(lit, id)(symbol))
+                Some(Typed.VarDef(lit, id)(symbol))
             }
           case m @ MethodDef(id, params, returnType, body, isStatic) =>
             val rt = typeTypeLit(returnType)
@@ -214,10 +215,42 @@ trait Namer extends Util {
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass)
                 ctx.declare(symbol)
-                Some(Named.MethodDef(id, typedParams, rt, body, isStatic)(symbol))
+                val block = resolveBlock(body)(formalCtx)
+                Some(Typed.MethodDef(id, typedParams, rt, block, isStatic)(symbol))
             }
         }
     }
     resolved.map(_.setPos(field.pos))
+  }
+
+  def resolveBlock(block: Block)(implicit ctx: ScopeContext): Typed.Block = {
+    val scope = ctx.currentScope match {
+      case s: FormalScope => s.nestedScope
+      case _: LocalScope => new LocalScope
+    }
+    val local = ctx.open(scope)
+    val ss = block.stmts.map { resolveStmt(_)(local) }
+    Typed.Block(ss).setPos(block.pos)
+  }
+
+  def resolveStmt(stmt: Stmt)(implicit ctx: ScopeContext): Typed.Stmt = {
+    val checked = stmt match {
+      case block: Block => resolveBlock(block)
+      case v: LocalVarDef => resolveLocalVarDef(v).getOrElse(Typed.Skip())
+      case Assign(lhs, rhs) => Typed.Assign(lhs, rhs)
+      case ExprEval(expr) => Typed.ExprEval(expr)
+      case Skip() => Typed.Skip()
+      case If(cond, trueBranch, falseBranch) =>
+        val t = resolveBlock(trueBranch)
+        val f = falseBranch.map(resolveBlock)
+        Typed.If(cond, t, f)
+      case While(cond, body) => Typed.While(cond, resolveBlock(body))
+      case For(init, cond, update, body) =>
+        Typed.For(resolveStmt(init), cond, resolveStmt(update), resolveBlock(body))
+      case Break() => Typed.Break()
+      case Return(expr) => Typed.Return(expr)
+      case Print(exprs) => Typed.Print(exprs)
+    }
+    checked.setPos(stmt.pos)
   }
 }

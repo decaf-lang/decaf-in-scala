@@ -14,7 +14,7 @@ import decaf.tree.TreeNode._
   * files to specify each of them. Thanks to the type members of Scala, we can extract the common nodes out, define
   * them once and for all in a single file, without too much effort.
   */
-trait TopLevelTmpl {
+trait TreeTmpl {
 
   /**
     * Let the compiler developer specify which annotations they need for different categories of trees.
@@ -23,6 +23,11 @@ trait TopLevelTmpl {
   type ClassAnnot <: Annot
   type MemberVarAnnot <: Annot
   type MethodAnnot <: Annot
+  type TypeLitAnnot <: Annot
+  type LocalVarAnnot <: Annot
+  type StmtAnnot <: Annot
+  type BlockAnnot <: Annot
+  type ExprAnnot <: Annot
 
   type ClassRef
 
@@ -59,8 +64,6 @@ trait TopLevelTmpl {
     */
   trait Field extends Def
 
-  type TypeLit <: Node
-
   /**
     * Member variable declaration:
     * {{{
@@ -70,12 +73,8 @@ trait TopLevelTmpl {
     */
   case class VarDef(typeLit: TypeLit, id: Id)(implicit val annot: MemberVarAnnot)
     extends Field with Var with Annotated[MemberVarAnnot] {
-    type TypeLitT = TypeLit
+    type TypeLitType = TypeLit
   }
-
-  type Block <: Node
-
-  type LocalVarDef <: Node
 
   /**
     * Member method definition:
@@ -92,21 +91,6 @@ trait TopLevelTmpl {
     */
   case class MethodDef(id: Id, params: List[LocalVarDef], returnType: TypeLit, body: Block, isStatic: Boolean)
                       (implicit val annot: MethodAnnot) extends Field with Annotated[MethodAnnot]
-
-}
-
-/**
-  * A template trait for expressing an entire tree, from class definitions to every little expressions.
-  */
-trait TreeTmpl extends TopLevelTmpl {
-
-  /**
-    * Let the compiler developer specify which annotations they need for different categories of trees.
-    */
-  type LocalVarAnnot <: Annot
-  type TypeLitAnnot <: Annot
-  type StmtAnnot <: Annot
-  type ExprAnnot <: Annot
 
   /**
     * Type. Decaf only supports
@@ -173,7 +157,7 @@ trait TreeTmpl extends TopLevelTmpl {
     */
   case class LocalVarDef(typeLit: TypeLit, id: Id)(implicit val annot: LocalVarAnnot)
     extends Stmt with Var with Annotated[LocalVarAnnot] {
-    type TypeLitT = TypeLit
+    type TypeLitType = TypeLit
   }
 
   /**
