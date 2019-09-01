@@ -73,7 +73,7 @@ trait TopLevelTmpl {
     type TypeLitT = TypeLit
   }
 
-  type Stmt <: Node
+  type Block <: Node
 
   type LocalVarDef <: Node
 
@@ -90,7 +90,7 @@ trait TopLevelTmpl {
     * @param body       method body (a statement block, by syntactic grammar)
     * @param isStatic   is this method static?
     */
-  case class MethodDef(id: Id, params: List[LocalVarDef], returnType: TypeLit, body: Stmt, isStatic: Boolean)
+  case class MethodDef(id: Id, params: List[LocalVarDef], returnType: TypeLit, body: Block, isStatic: Boolean)
                       (implicit val annot: MethodAnnot) extends Field with Annotated[MethodAnnot]
 
 }
@@ -233,7 +233,7 @@ trait TreeTmpl extends TopLevelTmpl {
     * @param trueBranch  body to execute if condition holds
     * @param falseBranch body to execute if condition does NOT hold (do nothing if not given)
     */
-  case class If(cond: Expr, trueBranch: Stmt, falseBranch: Option[Stmt])(implicit val annot: StmtAnnot)
+  case class If(cond: Expr, trueBranch: Block, falseBranch: Option[Block])(implicit val annot: StmtAnnot)
     extends ControlFlowStmt
 
   /**
@@ -245,7 +245,7 @@ trait TreeTmpl extends TopLevelTmpl {
     * @param cond condition
     * @param body loop body to execute if condition holds
     */
-  case class While(cond: Expr, body: Stmt)(implicit val annot: StmtAnnot) extends ControlFlowStmt
+  case class While(cond: Expr, body: Block)(implicit val annot: StmtAnnot) extends ControlFlowStmt
 
   /**
     * For statement:
@@ -258,7 +258,7 @@ trait TreeTmpl extends TopLevelTmpl {
     * @param update updating actions after every loop iteration (simple statements _only_)
     * @param body   body to execute if condition holds
     */
-  case class For(init: Stmt, cond: Expr, update: Stmt, body: Stmt)(implicit val annot: StmtAnnot)
+  case class For(init: Stmt, cond: Expr, update: Stmt, body: Block)(implicit val annot: StmtAnnot)
     extends ControlFlowStmt
 
   /**

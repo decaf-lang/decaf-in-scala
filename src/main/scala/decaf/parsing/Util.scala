@@ -1,5 +1,6 @@
 package decaf.parsing
 
+import decaf.tree.SyntaxTree.{Stmt, Block}
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 
 object Util {
@@ -52,5 +53,8 @@ object Util {
     override protected def lineContents: String = ???
   }
 
-
+  implicit def blocked(stmt: Stmt): Block = stmt match {
+    case b: Block => b
+    case _ => Block(List(stmt)).setPos(stmt.pos)
+  }
 }

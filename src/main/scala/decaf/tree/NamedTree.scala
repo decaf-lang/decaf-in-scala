@@ -18,7 +18,7 @@ object NamedTree extends TopLevelTmpl {
   type MethodAnnot = MethodSymbol
   type ClassRef = ClassSymbol
 
-  override type Stmt = SyntaxTree.Stmt
+  override type Block = SyntaxTree.Block
 
   override type TypeLit = TypedTree.TypeLit
   override type LocalVarDef = TypedTree.LocalVarDef

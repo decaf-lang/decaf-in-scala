@@ -64,7 +64,7 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
           case v @ Named.VarDef(typeLit, id) => Typed.VarDef(typeLit, id)(v.symbol).setPos(v.pos)
           case f @ Named.MethodDef(id, params, returnType, body, isStatic) =>
             val localCtx = ctx.open(f.symbol.scope)
-            val checkedBody = checkStmt(body)(State(), localCtx)
+            val checkedBody = checkBlock(body)(State(), localCtx)
             // FIXME check every path is returned, if its return type is not void
             Typed.MethodDef(id, params, returnType, checkedBody, isStatic)(f.symbol).setPos(f.pos)
         }
@@ -101,11 +101,32 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
     def setNotInBlock(): State = State(insideLoop, false)
   }
 
+  def checkBlock(block: Block)(implicit state: State, ctx: ScopeContext): Typed.Block = {
+    val err = Typed.Skip()
+
+    val checked = block match {
+      case Block(stmts) =>
+        val scope = ctx.currentScope match {
+          case s: FormalScope => s.nestedScope
+          case s: LocalScope =>
+            val ls = new LocalScope
+            if (state.directInBlock) s.nestedScopes += ls
+            ls
+        }
+        val local = ctx.open(scope)
+        val ss = stmts.map { checkStmt(_)(state, local) }
+        Typed.Block(ss)
+    }
+    checked.setPos(block.pos)
+  }
+
   def checkStmt(stmt: Stmt)(implicit state: State, ctx: ScopeContext): Typed.Stmt = {
     // NOTE: as a convention, we always return a skip if the statement is ill-typed.
     val err = Typed.Skip()
 
     val checked = stmt match {
+      case block: Block => checkBlock(block)
+
       case varDef @ LocalVarDef(typeLit, id) =>
         ctx.findConflict(id) match {
           case Some(earlier) =>
@@ -127,18 +148,6 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
             }
         }
 
-      case Block(stmts) =>
-        val scope = ctx.currentScope match {
-          case s: FormalScope => s.nestedScope
-          case s: LocalScope =>
-            val ls = new LocalScope
-            if (state.directInBlock) s.nestedScopes += ls
-            ls
-        }
-        val local = ctx.open(scope)
-        val ss = stmts.map { checkStmt(_)(state, local) }
-        Typed.Block(ss)
-
       case Assign(lhs, rhs) =>
         val l = typeLValue(lhs)
         val r = typeExpr(rhs)
@@ -158,20 +167,20 @@ class Typer extends Phase[Tree, Typed.Tree]("typer") with Namer {
 
       case If(cond, trueBranch, falseBranch) =>
         val c = checkTestExpr(cond)
-        val t = checkStmt(trueBranch)(state.setNotInBlock(), ctx)
-        val f = falseBranch.map(checkStmt(_)(state.setNotInBlock(), ctx))
+        val t = checkBlock(trueBranch)(state.setNotInBlock(), ctx)
+        val f = falseBranch.map(checkBlock(_)(state.setNotInBlock(), ctx))
         Typed.If(c, t, f)
 
       case While(cond, body) =>
         val c = checkTestExpr(cond)
-        val b = checkStmt(body)(state.setInLoop(), ctx)
+        val b = checkBlock(body)(state.setInLoop(), ctx)
         Typed.While(c, b)
 
       case For(init, cond, update, body) =>
         val i = checkStmt(init)
         val c = checkTestExpr(cond)
         val u = checkStmt(update)
-        val b = checkStmt(body)(state.setInLoop(), ctx)
+        val b = checkBlock(body)(state.setInLoop(), ctx)
         Typed.For(i, c, u, b)
 
       case Break() =>

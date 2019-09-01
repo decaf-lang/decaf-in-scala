@@ -172,7 +172,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       val cond = ctx.cond.accept(ExprVisitor)
       val trueBranch = ctx.trueBranch.accept(this)
       // NOTE: if the false branch is not given, regard it as skip.
-      val falseBranch = if (ctx.falseBranch == null) None else Some(ctx.falseBranch.accept(this))
+      val falseBranch = if (ctx.falseBranch == null) None else Some(blocked(ctx.falseBranch.accept(this)))
       If(cond, trueBranch, falseBranch)
     }
 
