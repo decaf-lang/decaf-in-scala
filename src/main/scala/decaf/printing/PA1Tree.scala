@@ -7,6 +7,8 @@ import decaf.tree.TreeNode.{Id, Node, Op}
 
 /**
   * PA1 output.
+  *
+  * @deprecated remove this in future, use `PrettyTree` instead!
   */
 object PA1Tree {
 

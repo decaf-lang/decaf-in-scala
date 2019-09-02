@@ -1,42 +1,102 @@
-program
-    class Main <empty>
-        vardef field booltype
-        vardef another classtype Main
-        func foo arrtype inttype
-            formals
-                vardef y inttype
-            stmtblock
-                vardef q arrtype inttype
-                vardef i inttype
-                assign
-                    varref q
-                    newarray inttype
-                        varref y
-                assign
-                    varref i
-                    intconst 0
-                while
-                    les
-                        varref i
-                        varref y
-                    stmtblock
-                        assign
-                            arrref
-                                varref q
-                                varref i
-                            varref i
-                        assign
-                            varref i
-                            add
-                                varref i
-                                intconst 1
-                return
-                    varref q
-        static func main inttype
-            formals
-            stmtblock
-                return
-                    call length
-                        call foo
-                            this
-                            intconst 5
+TopLevel @ (1,1)
+    List
+        ClassDef @ (1,1)
+            Main
+            <none>
+            List
+                VarDef @ (2,10)
+                    TBool @ (2,5)
+                    field
+                VarDef @ (4,16)
+                    TClass @ (4,5)
+                        Main
+                    another
+                MethodDef @ (6,11)
+                    foo
+                    List
+                        LocalVarDef @ (6,19)
+                            TInt @ (6,15)
+                            y
+                    TArray @ (6,5)
+                        TInt @ (6,5)
+                    Block @ (6,22)
+                        List
+                            LocalVarDef @ (7,15)
+                                TArray @ (7,9)
+                                    TInt @ (7,9)
+                                q
+                            LocalVarDef @ (8,13)
+                                TInt @ (8,9)
+                                i
+                            Assign @ (10,11)
+                                VarSel @ (10,9)
+                                    <none>
+                                    q
+                                NewArray @ (10,13)
+                                    TInt @ (10,17)
+                                    VarSel @ (10,21)
+                                        <none>
+                                        y
+                            Assign @ (11,11)
+                                VarSel @ (11,9)
+                                    <none>
+                                    i
+                                IntLit @ (11,13)
+                                    0
+                            While @ (12,9)
+                                BinaryExpr @ (12,18)
+                                    <
+                                    VarSel @ (12,16)
+                                        <none>
+                                        i
+                                    VarSel @ (12,20)
+                                        <none>
+                                        y
+                                Block @ (12,23)
+                                    List
+                                        Assign @ (13,18)
+                                            IndexSel @ (13,13)
+                                                VarSel @ (13,13)
+                                                    <none>
+                                                    q
+                                                VarSel @ (13,15)
+                                                    <none>
+                                                    i
+                                            VarSel @ (13,20)
+                                                <none>
+                                                i
+                                        Assign @ (14,15)
+                                            VarSel @ (14,13)
+                                                <none>
+                                                i
+                                            BinaryExpr @ (14,19)
+                                                +
+                                                VarSel @ (14,17)
+                                                    <none>
+                                                    i
+                                                IntLit @ (14,21)
+                                                    1
+                            Return @ (17,9)
+                                VarSel @ (17,16)
+                                    <none>
+                                    q
+                    false
+                MethodDef @ (20,16)
+                    main
+                    List
+                        <empty>
+                    TInt @ (20,12)
+                    Block @ (20,23)
+                        List
+                            Return @ (21,9)
+                                Call @ (21,28)
+                                    Call @ (21,21)
+                                        This @ (21,16)
+                                        foo
+                                        List
+                                            IntLit @ (21,25)
+                                                5
+                                    length
+                                    List
+                                        <empty>
+                    true

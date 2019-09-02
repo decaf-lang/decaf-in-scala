@@ -1,102 +1,241 @@
-program
-    class Main <empty>
-        static func main voidtype
-            formals
-            stmtblock
-                vardef b classtype Base
-                vardef s1 classtype Sub1
-                vardef s2 classtype Sub2
-                vardef s3 classtype Sub3
-                vardef s4 classtype Sub4
-                assign
-                    varref b
-                    newobj Base
-                assign
-                    varref s1
-                    newobj Sub1
-                assign
-                    varref s2
-                    newobj Sub2
-                assign
-                    varref s3
-                    newobj Sub3
-                assign
-                    varref s4
-                    newobj Sub4
-                call printType
-                    <empty>
-                    varref b
-                call printType
-                    <empty>
-                    varref s1
-                call printType
-                    <empty>
-                    varref s2
-                call printType
-                    <empty>
-                    varref s3
-                call printType
-                    <empty>
-                    varref s4
-                assign
-                    varref b
-                    varref s4
-                call printType
-                    <empty>
-                    varref b
-                assign
-                    varref s1
-                    classcast
-                        Sub1
-                        varref b
-                call printType
-                    <empty>
-                    varref s1
-        static func printType voidtype
-            formals
-                vardef base classtype Base
-            stmtblock
-                if
-                    instanceof
-                        varref base
-                        Sub4
-                    stmtblock
-                        print
-                            stringconst "Sub4\n"
-                else
-                    if
-                        instanceof
-                            varref base
-                            Sub3
-                        stmtblock
-                            print
-                                stringconst "Sub3\n"
-                    else
-                        if
-                            instanceof
-                                varref base
-                                Sub2
-                            stmtblock
-                                print
-                                    stringconst "Sub2\n"
-                        else
-                            if
-                                instanceof
-                                    varref base
+TopLevel @ (1,1)
+    List
+        ClassDef @ (1,1)
+            Main
+            <none>
+            List
+                MethodDef @ (2,17)
+                    main
+                    List
+                        <empty>
+                    TVoid @ (2,12)
+                    Block @ (2,24)
+                        List
+                            LocalVarDef @ (3,20)
+                                TClass @ (3,9)
+                                    Base
+                                b
+                            LocalVarDef @ (4,20)
+                                TClass @ (4,9)
                                     Sub1
-                                stmtblock
-                                    print
-                                        stringconst "Sub1\n"
-                            else
-                                if
-                                    instanceof
-                                        varref base
-                                        Base
-                                    stmtblock
-                                        print
-                                            stringconst "Base\n"
-    class Base <empty>
-    class Sub1 Base
-    class Sub2 Base
-    class Sub3 Sub1
-    class Sub4 Sub3
+                                s1
+                            LocalVarDef @ (5,20)
+                                TClass @ (5,9)
+                                    Sub2
+                                s2
+                            LocalVarDef @ (6,20)
+                                TClass @ (6,9)
+                                    Sub3
+                                s3
+                            LocalVarDef @ (7,20)
+                                TClass @ (7,9)
+                                    Sub4
+                                s4
+                            Assign @ (9,11)
+                                VarSel @ (9,9)
+                                    <none>
+                                    b
+                                NewClass @ (9,13)
+                                    Base
+                            Assign @ (10,12)
+                                VarSel @ (10,9)
+                                    <none>
+                                    s1
+                                NewClass @ (10,14)
+                                    Sub1
+                            Assign @ (11,12)
+                                VarSel @ (11,9)
+                                    <none>
+                                    s2
+                                NewClass @ (11,14)
+                                    Sub2
+                            Assign @ (12,12)
+                                VarSel @ (12,9)
+                                    <none>
+                                    s3
+                                NewClass @ (12,14)
+                                    Sub3
+                            Assign @ (13,12)
+                                VarSel @ (13,9)
+                                    <none>
+                                    s4
+                                NewClass @ (13,14)
+                                    Sub4
+                            ExprEval @ (14,9)
+                                Call @ (14,9)
+                                    <none>
+                                    printType
+                                    List
+                                        VarSel @ (14,19)
+                                            <none>
+                                            b
+                            ExprEval @ (15,9)
+                                Call @ (15,9)
+                                    <none>
+                                    printType
+                                    List
+                                        VarSel @ (15,19)
+                                            <none>
+                                            s1
+                            ExprEval @ (16,9)
+                                Call @ (16,9)
+                                    <none>
+                                    printType
+                                    List
+                                        VarSel @ (16,19)
+                                            <none>
+                                            s2
+                            ExprEval @ (17,9)
+                                Call @ (17,9)
+                                    <none>
+                                    printType
+                                    List
+                                        VarSel @ (17,19)
+                                            <none>
+                                            s3
+                            ExprEval @ (18,9)
+                                Call @ (18,9)
+                                    <none>
+                                    printType
+                                    List
+                                        VarSel @ (18,19)
+                                            <none>
+                                            s4
+                            Assign @ (19,11)
+                                VarSel @ (19,9)
+                                    <none>
+                                    b
+                                VarSel @ (19,13)
+                                    <none>
+                                    s4
+                            ExprEval @ (20,9)
+                                Call @ (20,9)
+                                    <none>
+                                    printType
+                                    List
+                                        VarSel @ (20,19)
+                                            <none>
+                                            b
+                            Assign @ (21,12)
+                                VarSel @ (21,9)
+                                    <none>
+                                    s1
+                                ClassCast @ (21,14)
+                                    VarSel @ (21,26)
+                                        <none>
+                                        b
+                                    Sub1
+                            ExprEval @ (22,9)
+                                Call @ (22,9)
+                                    <none>
+                                    printType
+                                    List
+                                        VarSel @ (22,19)
+                                            <none>
+                                            s1
+                    true
+                MethodDef @ (25,17)
+                    printType
+                    List
+                        LocalVarDef @ (25,38)
+                            TClass @ (25,27)
+                                Base
+                            base
+                    TVoid @ (25,12)
+                    Block @ (25,44)
+                        List
+                            If @ (26,9)
+                                ClassTest @ (26,13)
+                                    VarSel @ (26,24)
+                                        <none>
+                                        base
+                                    Sub4
+                                Block @ (26,37)
+                                    List
+                                        Print @ (27,13)
+                                            List
+                                                StringLit @ (27,19)
+                                                    "Sub4\n"
+                                Block @ (28,16)
+                                    List
+                                        If @ (28,16)
+                                            ClassTest @ (28,20)
+                                                VarSel @ (28,31)
+                                                    <none>
+                                                    base
+                                                Sub3
+                                            Block @ (28,44)
+                                                List
+                                                    Print @ (29,13)
+                                                        List
+                                                            StringLit @ (29,19)
+                                                                "Sub3\n"
+                                            Block @ (30,16)
+                                                List
+                                                    If @ (30,16)
+                                                        ClassTest @ (30,20)
+                                                            VarSel @ (30,31)
+                                                                <none>
+                                                                base
+                                                            Sub2
+                                                        Block @ (30,44)
+                                                            List
+                                                                Print @ (31,13)
+                                                                    List
+                                                                        StringLit @ (31,19)
+                                                                            "Sub2\n"
+                                                        Block @ (32,16)
+                                                            List
+                                                                If @ (32,16)
+                                                                    ClassTest @ (32,20)
+                                                                        VarSel @ (32,31)
+                                                                            <none>
+                                                                            base
+                                                                        Sub1
+                                                                    Block @ (32,44)
+                                                                        List
+                                                                            Print @ (33,13)
+                                                                                List
+                                                                                    StringLit @ (33,19)
+                                                                                        "Sub1\n"
+                                                                    Block @ (34,16)
+                                                                        List
+                                                                            If @ (34,16)
+                                                                                ClassTest @ (34,20)
+                                                                                    VarSel @ (34,31)
+                                                                                        <none>
+                                                                                        base
+                                                                                    Base
+                                                                                Block @ (34,44)
+                                                                                    List
+                                                                                        Print @ (35,13)
+                                                                                            List
+                                                                                                StringLit @ (35,19)
+                                                                                                    "Base\n"
+                                                                                <none>
+                    true
+        ClassDef @ (40,1)
+            Base
+            <none>
+            List
+                <empty>
+        ClassDef @ (43,1)
+            Sub1
+            Base
+            List
+                <empty>
+        ClassDef @ (46,1)
+            Sub2
+            Base
+            List
+                <empty>
+        ClassDef @ (49,1)
+            Sub3
+            Sub1
+            List
+                <empty>
+        ClassDef @ (52,1)
+            Sub4
+            Sub3
+            List
+                <empty>

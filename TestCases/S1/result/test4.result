@@ -1,43 +1,97 @@
-program
-    class Father <empty>
-        vardef field inttype
-        func method voidtype
-            formals
-                vardef f inttype
-            stmtblock
-                if
-                    and
-                        gtr
-                            varref f
-                            intconst 0
-                        les
-                            varref f
-                            intconst 10
-                    stmtblock
-                        assign
-                            varref f
-                            sub
-                                varref f
-                                intconst 3
-                        return
-                            call method
-                                <empty>
-                                varref f
-    class Child Father
-        func start voidtype
-            formals
-            stmtblock
-                vardef p classtype Father
-                assign
-                    varref p
-                    this
-                assign
-                    varref field
-                        varref p
-                    intconst 5
-                assign
-                    varref p
-                    null
-                print
-                    varref field
-                        this
+TopLevel @ (1,1)
+    List
+        ClassDef @ (1,1)
+            Father
+            <none>
+            List
+                VarDef @ (2,9)
+                    TInt @ (2,5)
+                    field
+                MethodDef @ (4,10)
+                    method
+                    List
+                        LocalVarDef @ (4,21)
+                            TInt @ (4,17)
+                            f
+                    TVoid @ (4,5)
+                    Block @ (4,24)
+                        List
+                            If @ (5,9)
+                                BinaryExpr @ (5,19)
+                                    &&
+                                    BinaryExpr @ (5,15)
+                                        >
+                                        VarSel @ (5,13)
+                                            <none>
+                                            f
+                                        IntLit @ (5,17)
+                                            0
+                                    BinaryExpr @ (5,24)
+                                        <
+                                        VarSel @ (5,22)
+                                            <none>
+                                            f
+                                        IntLit @ (5,26)
+                                            10
+                                Block @ (5,30)
+                                    List
+                                        Assign @ (6,15)
+                                            VarSel @ (6,13)
+                                                <none>
+                                                f
+                                            BinaryExpr @ (6,19)
+                                                -
+                                                VarSel @ (6,17)
+                                                    <none>
+                                                    f
+                                                IntLit @ (6,21)
+                                                    3
+                                        Return @ (7,13)
+                                            Call @ (7,20)
+                                                <none>
+                                                method
+                                                List
+                                                    VarSel @ (7,27)
+                                                        <none>
+                                                        f
+                                <none>
+                    false
+        ClassDef @ (12,1)
+            Child
+            Father
+            List
+                MethodDef @ (13,10)
+                    start
+                    List
+                        <empty>
+                    TVoid @ (13,5)
+                    Block @ (13,18)
+                        List
+                            LocalVarDef @ (14,22)
+                                TClass @ (14,9)
+                                    Father
+                                p
+                            Assign @ (16,11)
+                                VarSel @ (16,9)
+                                    <none>
+                                    p
+                                This @ (16,13)
+                            Assign @ (17,17)
+                                VarSel @ (17,11)
+                                    VarSel @ (17,9)
+                                        <none>
+                                        p
+                                    field
+                                IntLit @ (17,19)
+                                    5
+                            Assign @ (18,11)
+                                VarSel @ (18,9)
+                                    <none>
+                                    p
+                                NullLit @ (18,13)
+                            Print @ (20,9)
+                                List
+                                    VarSel @ (20,20)
+                                        This @ (20,15)
+                                        field
+                    false
