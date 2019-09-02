@@ -2,7 +2,7 @@ GLOBAL SCOPE:
     (3,1) -> class Main
     (10,1) -> class NQueues
     CLASS SCOPE OF 'Main':
-        (5,17) -> static function main : void
+        (5,17) -> static function main : () -> void
         FORMAL SCOPE OF 'main':
             LOCAL SCOPE:
     CLASS SCOPE OF 'NQueues':
@@ -11,11 +11,11 @@ GLOBAL SCOPE:
         (13,11) -> variable row : int[]
         (14,11) -> variable di1 : int[]
         (15,11) -> variable di2 : int[]
-        (18,19) -> function init : class : NQueues->int->class : NQueues
-        (29,10) -> function solve : class : NQueues->void
-        (34,11) -> function clearArray : class : NQueues->int[]->int[]
-        (45,10) -> function printBoard : class : NQueues->int[]->int->void
-        (65,10) -> function try : class : NQueues->int->int[]->int[]->int[]->int[]->void
+        (18,19) -> function init : int -> class : NQueues
+        (29,10) -> function solve : () -> void
+        (34,11) -> function clearArray : int[] -> int[]
+        (45,10) -> function printBoard : (int[], int) -> void
+        (65,10) -> function try : (int, int[], int[], int[], int[]) -> void
         FORMAL SCOPE OF 'init':
             (18,19) -> variable @this : class : NQueues
             (18,28) -> variable @n : int

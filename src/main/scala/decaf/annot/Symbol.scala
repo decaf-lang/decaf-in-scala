@@ -76,8 +76,7 @@ class MethodSymbol(tree: SyntaxTree.MethodDef, val typ: FunType, val scope: Form
 
   override def pos: Pos = tree.pos
 
-  override def str: String = (if (isStatic) "static " else "") + s"function $name : " +
-    (if (isStatic) "" else s"class : ${ owner.name }->") + typ.toString
+  override def str: String = (if (isStatic) "static " else "") + s"function $name : " + typ.toString
 
   scope.owner = this
 

@@ -124,7 +124,14 @@ case class FunType(params: List[Type], ret: Type) extends Type {
     case _ => false
   }
 
-  override def toString: String = params.map(_ + "->").mkString + ret
+  override def toString: String = {
+    val ps = params match {
+      case Nil => "()"
+      case t :: Nil => t.toString
+      case ts => s"(${ ts.mkString(", ") })"
+    }
+    s"$ps -> $ret"
+  }
 }
 
 object NoType extends Type {

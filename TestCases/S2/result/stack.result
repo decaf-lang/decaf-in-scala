@@ -4,11 +4,11 @@ GLOBAL SCOPE:
     CLASS SCOPE OF 'Stack':
         (2,9) -> variable sp : int
         (3,11) -> variable elems : int[]
-        (5,10) -> function Init : class : Stack->void
-        (11,10) -> function Push : class : Stack->int->void
-        (16,9) -> function Pop : class : Stack->int
-        (23,9) -> function NumElems : class : Stack->int
-        (27,17) -> static function main : void
+        (5,10) -> function Init : () -> void
+        (11,10) -> function Push : int -> void
+        (16,9) -> function Pop : () -> int
+        (23,9) -> function NumElems : () -> int
+        (27,17) -> static function main : () -> void
         FORMAL SCOPE OF 'Init':
             (5,10) -> variable @this : class : Stack
             LOCAL SCOPE:
@@ -27,6 +27,6 @@ GLOBAL SCOPE:
             LOCAL SCOPE:
                 (28,21) -> variable s : class : Stack
     CLASS SCOPE OF 'Main':
-        (39,14) -> static function main : void
+        (39,14) -> static function main : () -> void
         FORMAL SCOPE OF 'main':
             LOCAL SCOPE:
