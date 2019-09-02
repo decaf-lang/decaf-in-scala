@@ -164,7 +164,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         }
         val actual = e.map(_.typ).getOrElse(VoidType)
         if (actual.noError && !(actual <= expected)) issue(new BadReturnTypeError(expected, actual, stmt.pos))
-        Return(e)(Yes) // returned
+        Return(e)(if (e.isDefined) Yes else No) // returned if it has an expression
 
       case Print(exprs) =>
         val es = exprs.zipWithIndex.map {
