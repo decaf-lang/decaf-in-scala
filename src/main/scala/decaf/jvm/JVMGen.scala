@@ -90,11 +90,11 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
   def appendReturnIfNecessary(methodDef: MethodDef)(implicit mv: MethodVisitor): Unit = {
     if (!methodDef.returnType.typ.isVoidType) return
 
-    val stmts = methodDef.body.asInstanceOf[Block].stmts
+    val stmts = methodDef.body.stmts
     if (stmts.isEmpty || !stmts.last.isInstanceOf[Return]) mv.visitInsn(Opcodes.RETURN)
   }
 
-  type LocalVars = mutable.HashMap[LocalVarSymbol, Int]
+  type LocalVars = mutable.TreeMap[LocalVarSymbol, Int]
 
   private class Context(isStatic: Boolean = true) {
     val index: LocalVars = new LocalVars
@@ -123,27 +123,29 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     case v: LocalVarDef =>
       // JVM will complain if a local variable is read but not initialized yet. It also seems that when the local
       // variable is firstly initialized in a more inner scope rather than the outer most local scope, JVM reports
-      // an error. To avoid these, let's simply initialize every user-defined local variable right now.
+      // an error. To avoid these, let's simply initialize every user-defined local variable right now, in case
+      // the user didn't.
       val index = ctx.declare(v.symbol)
-      loadDefaultValue(v.typeLit.typ)
+      v.init match {
+        case Some(expr) => emitExpr(expr)
+        case None => loadDefaultValue(v.typeLit.typ)
+      }
       mv.visitVarInsn(storeOp(v.typeLit.typ), index)
 
-    case Assign(lhs, rhs) =>
-      lhs match {
-        case LocalVar(v) =>
-          emitExpr(rhs)
-          mv.visitVarInsn(storeOp(v.typ), ctx.index(v))
-        case MemberVar(receiver, v) =>
-          emitExpr(receiver)
-          emitExpr(rhs)
-          mv.visitFieldInsn(Opcodes.PUTFIELD, internalName(v.owner), v.name, descriptor(v))
-        case IndexSel(array, index) =>
-          emitExpr(array)
-          emitExpr(index)
-          emitExpr(rhs)
-          val elemType = array.typ.asInstanceOf[ArrayType].elemType
-          mv.visitInsn(arrayStoreOp(elemType))
-      }
+    case Assign(LocalVar(v), rhs) =>
+      emitExpr(rhs)
+      mv.visitVarInsn(storeOp(v.typ), ctx.index(v))
+    case Assign(MemberVar(receiver, v), rhs) =>
+      emitExpr(receiver)
+      emitExpr(rhs)
+      mv.visitFieldInsn(Opcodes.PUTFIELD, internalName(v.owner), v.name, descriptor(v))
+    case Assign(IndexSel(array, index), rhs) =>
+      emitExpr(array)
+      emitExpr(index)
+      emitExpr(rhs)
+      val elemType = array.typ.asInstanceOf[ArrayType].elemType
+      mv.visitInsn(arrayStoreOp(elemType))
+
     case ExprEval(expr) => emitExpr(expr)
     case Skip() => // nop
 

@@ -47,6 +47,7 @@ trait TacEmitter {
         fv.visitAssign(ctx.vars(v), t)
 
       case ExprEval(expr) => emitExpr(expr)
+      case Skip() => // nop
 
       case If(cond, trueBranch, falseBranch) =>
         val t = emitExpr(cond)
