@@ -1,6 +1,6 @@
 package decaf.parsing
 
-import decaf.tree.SyntaxTree.{Stmt, Block}
+import decaf.tree.SyntaxTree.{Block, Stmt}
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 
 object Util {

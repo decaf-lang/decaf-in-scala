@@ -15,6 +15,9 @@ libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
 
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 
+// https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.9"
+
 // antlr4
 
 enablePlugins(Antlr4Plugin)
@@ -28,3 +31,8 @@ antlr4GenVisitor in Antlr4 := true // default: false
 // assembly
 
 assemblyOutputPath in assembly := file("target/decaf.jar")
+
+// java 12
+
+javacOptions in Compile += "--enable-preview"
+javacOptions in Compile ++= Seq("-source", "12")

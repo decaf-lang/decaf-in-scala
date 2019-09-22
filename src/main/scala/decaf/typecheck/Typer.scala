@@ -6,8 +6,9 @@ import decaf.annot.TypeImplicit._
 import decaf.annot._
 import decaf.driver.{Config, Phase}
 import decaf.error._
+import decaf.lowlevel.log.IndentPrinter
 import decaf.parsing.Pos
-import decaf.printing.{IndentPrinter, PrettyScope}
+import decaf.printing.PrettyScope
 import decaf.tree.SyntaxTree.NoAnnot
 import decaf.tree.TreeNode._
 import decaf.tree.TypedTree._
@@ -86,9 +87,9 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
     */
   override def post(tree: Tree)(implicit config: Config): Unit = {
     if (config.target == Config.Target.PA2) {
-      implicit val printer: IndentPrinter = new IndentPrinter
-      PrettyScope.pretty(tree.scope)
-      config.outputStream.print(printer.toString)
+      val printer = new PrettyScope(new IndentPrinter(config.output))
+      printer.pretty(tree.scope)
+      printer.flush()
     }
   }
 

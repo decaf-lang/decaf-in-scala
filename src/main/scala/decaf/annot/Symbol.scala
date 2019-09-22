@@ -1,9 +1,13 @@
 package decaf.annot
 
+import java.util.TreeSet
+
+import decaf.lowlevel.tac.ClassInfo
 import decaf.parsing.Pos
 import decaf.tree.SyntaxTree
 import decaf.tree.SyntaxTree._
 import decaf.tree.TreeNode.Var
+import decaf.util.Conversions._
 
 /**
   * Symbols.
@@ -13,7 +17,7 @@ import decaf.tree.TreeNode.Var
   * - stored in the symbol table of a scope
   * - referred by other expressions/statements
   */
-sealed trait Symbol extends Annot {
+sealed trait Symbol extends Annot with Ordered[Symbol] {
   type Typ <: Type
 
   def name: String
@@ -27,6 +31,8 @@ sealed trait Symbol extends Annot {
   var domain: Scope = _
 
   override def toString: String = s"(${ pos.line },${ pos.column }) -> " + str
+
+  override def compare(that: Symbol): Int = this.pos.compare(that.pos)
 }
 
 class ClassSymbol(tree: ClassDef, val typ: ClassType, val scope: ClassScope, val parent: Option[ClassSymbol] = None)
@@ -52,6 +58,21 @@ class ClassSymbol(tree: ClassDef, val typ: ClassType, val scope: ClassScope, val
   }
 
   def memberMethods: List[MethodSymbol] = methods.filterNot(_.isStatic)
+
+  def getInfo: ClassInfo = {
+    val memberVariables = new TreeSet[String]
+    val memberMethods = new TreeSet[String]
+    val staticMethods = new TreeSet[String]
+
+    scope.values.foreach {
+      case v: MemberVarSymbol => memberVariables.add(v.name)
+      case m: MethodSymbol =>
+        if (m.isStatic) staticMethods.add(m.name)
+        else memberMethods.add(m.name)
+    }
+
+    new ClassInfo(name, parent.map(_.name), memberVariables, memberMethods, staticMethods, name == "Main")
+  }
 }
 
 trait FieldSymbol extends Symbol {
@@ -89,11 +110,11 @@ class MethodSymbol(tree: SyntaxTree.MethodDef, val typ: FunType, val scope: Form
 
   val isStatic: Boolean = tree.isStatic
 
-  private var _isMain = false
+  private var main = false
 
-  def isMain: Boolean = _isMain
+  def isMain: Boolean = main
 
-  def setMain(): Unit = _isMain = true
+  def setMain(): Unit = main = true
 }
 
 class LocalVarSymbol(val name: String, val typ: Type, val pos: Pos, isParam: Boolean) extends Symbol with VarSymbol {

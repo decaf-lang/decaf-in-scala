@@ -1,33 +1,35 @@
 package decaf.printing
 
 import decaf.annot.Annotated
-import decaf.parsing.Util.quote
-import decaf.tree.TreeNode.{Id, Node}
+import decaf.lowlevel.log.IndentPrinter
+import decaf.tree.TreeNode.Node
 
-object PrettyTree {
+class PrettyTree(printer: IndentPrinter) extends PrettyPrinter[Node with Annotated[_]](printer) {
 
-  case class Config(showPos: Boolean = false, showAnnot: Boolean = false)
+  var showPos = true
 
-  def prettyElement(element: Any)(implicit printer: IndentPrinter, config: Config): Unit = element match {
-    case null => printer.writeln("<null>")
+  var showAnnot = false
+
+  def prettyElement(element: Any): Unit = element match {
+    case null => printer.println("<null>")
     case e: Node with Annotated[_] => pretty(e)
     case Some(e) => prettyElement(e)
-    case None => printer.writeln("<none>")
+    case None => printer.println("<none>")
     case es: List[_] =>
-      printer.writeln("List")
-      printer.withIndent {
-        if (es.isEmpty) printer.writeln("<empty>")
+      printer.println("List")
+      withIndent {
+        if (es.isEmpty) printer.println("<empty>")
         else es.foreach(prettyElement)
       }
-    case e => printer.writeln(e.toString)
+    case e => printer.println(e.toString)
   }
 
-  def pretty(node: Node with Annotated[_])(implicit printer: IndentPrinter, config: Config): Unit = {
-    val annotStr = if (config.showAnnot) s" { ${ node.annot } }" else ""
-    val posStr = if (config.showPos) s" @ (${ node.pos.line },${ node.pos.column })"
+  override def pretty(node: Node with Annotated[_]): Unit = {
+    val annotStr = if (showAnnot) s" { ${ node.annot } }" else ""
+    val posStr = if (showPos) s" @ (${ node.pos.line },${ node.pos.column })"
 
-    printer.writeln(node.productPrefix + annotStr + posStr)
-    printer.withIndent {
+    printer.println(node.productPrefix + annotStr + posStr)
+    withIndent {
       node.productIterator.foreach(prettyElement)
     }
   }

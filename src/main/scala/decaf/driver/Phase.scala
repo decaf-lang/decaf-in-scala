@@ -1,5 +1,7 @@
 package decaf.driver
 
+import java.io.PrintStream
+
 import decaf.error.ErrorIssuer
 
 abstract class Phase[In, Out](val name: String) extends ErrorIssuer {
@@ -8,10 +10,16 @@ abstract class Phase[In, Out](val name: String) extends ErrorIssuer {
   def post(output: Out)(implicit config: Config): Unit = {}
 
   def apply(input: In)(implicit config: Config): Option[Out] = {
-    //    println(s"Running phase $name ...")
     val out = transform(input)
-    printErrors()
-    if (config.target >= Config.Target.PA1) printErrors(config.outputStream)
-    if (hasError) None else { post(out); Some(out) }
+    if (hasError) {
+      printErrors(System.err)
+      if (config.output != Config.STDOUT && config.target <= Config.Target.PA3) {
+        printErrors(new PrintStream(config.output))
+      }
+      None
+    } else {
+      post(out)
+      Some(out)
+    }
   }
 }

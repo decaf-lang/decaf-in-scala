@@ -1,12 +1,12 @@
 package decaf.jvm
 
-import decaf.driver.{Config, Phase}
 import decaf.annot.SymbolImplicit._
 import decaf.annot.TypeImplicit._
 import decaf.annot.{ArrayType, JNativeType, LocalVarSymbol}
-import decaf.tree.{TreeNode, TypedTree}
+import decaf.driver.{Config, Phase}
 import decaf.tree.TreeNode.{ArithOp, EqOrCmpOp}
 import decaf.tree.TypedTree._
+import decaf.tree.{TreeNode, TypedTree}
 import org.objectweb.asm.{ClassWriter, Label, MethodVisitor, Opcodes}
 
 import scala.collection.mutable
@@ -251,8 +251,8 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
   }
 
   override def post(output: List[JVMClass])(implicit config: Config): Unit = {
-    if (config.target == Config.Target.jvm) {
-      output.foreach { _.writeFile(config.outputDir) }
+    if (config.target == Config.Target.PA3_JVM) {
+      output.foreach { _.writeFile(config.dstDir) }
     }
   }
 }

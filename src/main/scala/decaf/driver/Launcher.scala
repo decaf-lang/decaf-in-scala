@@ -11,11 +11,11 @@ object Launcher {
   def withConfig(implicit config: Config): Unit = {
     val tasks = new Tasks
     val task = config.target match {
-      case Config.Target.jvm => tasks.jvm
       case Config.Target.PA1 => tasks.parse
       case Config.Target.PA2 => tasks.typeCheck
       case Config.Target.PA3 => tasks.tac
+      case Config.Target.PA3_JVM => tasks.jvm
     }
-    task.run(config.source)
+    task.run(config.sourceStream)
   }
 }

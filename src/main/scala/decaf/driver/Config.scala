@@ -1,32 +1,46 @@
 package decaf.driver
 
-import java.io._
-import java.nio.file.Path
+import java.io.{FileInputStream, InputStream, OutputStream}
+import java.util.logging.Level
 
-import scopt.Read
-import scopt.Read.reads
+import scala.reflect.io.Path
 
 object Config {
 
   object Target extends Enumeration {
     type Target = Value
-    val jvm, PA1, PA2, PA3 = Value
+    val PA1, PA2, PA3, PA3_JVM, PA4, PA5 = Value
   }
 
-  implicit val _ReadTarget: Read[Target.Value] = reads(Target.withName)
-
-  val PWD = new File(System.getProperty("user.dir")).toPath
-  val STDOUT = System.out
+  val PWD: Path = System.getProperty("user.dir")
+  val STDOUT: OutputStream = System.out
 }
 
-class Config(val source: InputStream = null,
-             val outputStream: PrintStream = Config.STDOUT,
-             val outputDir: Path = Config.PWD,
-             val target: Config.Target.Value = Config.Target.jvm) {
+class Config(val source: Path = Config.PWD,
+             val output: OutputStream = Config.STDOUT,
+             val dstDir: Path = Config.PWD,
+             val target: Config.Target.Value = Config.Target.PA3,
+             val logColor: Boolean = false,
+             val logLevel: Level = Level.OFF,
+             val logFile: Path = null) {
 
-  def copy(source: InputStream = this.source,
-           outputStream: PrintStream = this.outputStream,
-           outputDir: Path = this.outputDir,
-           target: Config.Target.Value = this.target): Config =
-    new Config(source, outputStream, outputDir, target)
+  def copy(source: Path = this.source,
+           output: OutputStream = this.output,
+           dstDir: Path = this.dstDir,
+           target: Config.Target.Value = this.target,
+           logColor: Boolean = this.logColor,
+           logLevel: Level = this.logLevel,
+           logFile: Path = this.logFile): Config =
+    new Config(source, output, dstDir, target, logColor, logLevel, logFile)
+
+  def sourceStream: InputStream = new FileInputStream(source.jfile)
+
+  /**
+    * Get just the base name, without extension, of the input Decaf source.
+    *
+    * Example: the base name of `myFolder/blackjack.decaf`` is `blackjack`.
+    *
+    * @return base name
+    **/
+  def sourceBaseName: String = source.stripExtension
 }

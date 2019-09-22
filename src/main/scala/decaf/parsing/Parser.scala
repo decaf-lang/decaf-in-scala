@@ -4,9 +4,10 @@ import java.io.InputStream
 
 import decaf.driver.{Config, Phase}
 import decaf.error._
+import decaf.lowlevel.log.IndentPrinter
 import decaf.parsing.Util._
 import decaf.parsing.antlr.{DecafParser, DecafParserBaseVisitor}
-import decaf.printing.{IndentPrinter, PrettyTree}
+import decaf.printing.PrettyTree
 import decaf.tree.SyntaxTree._
 import decaf.tree.TreeNode
 import decaf.tree.TreeNode.{Id, Modifiers}
@@ -50,9 +51,9 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     */
   override def post(tree: Tree)(implicit config: Config): Unit = {
     if (config.target == Config.Target.PA1) { // pretty only when the target is PA1
-      implicit val printer: IndentPrinter = new IndentPrinter
-      PrettyTree.pretty(tree)(printer, PrettyTree.Config(showPos = true))
-      config.outputStream.print(printer.toString)
+      val printer = new PrettyTree(new IndentPrinter(config.output))
+      printer.pretty(tree)
+      printer.flush()
     }
   }
 

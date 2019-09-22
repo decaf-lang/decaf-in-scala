@@ -1,80 +1,75 @@
 package decaf.driver
 
-import java.io.{File, FileInputStream, InputStream, PrintStream}
-import java.nio.file.Path
+import java.io._
+import java.util.logging.Level
 
-import scopt.Read.reads
+import decaf.driver.Config.Target
 import scopt.{OptionParser, Read}
 
-object OptParser extends OptionParser[Config]("decaf") with NativeLogger with OptImplicits {
-  head("The decaf compiler", "(scala version)")
+object OptParser extends OptionParser[Config]("decaf") {
+  head("The decaf compiler", "v-19-fall", "(scala)")
 
-  arg[InputStream]("file")
+  arg[File]("file")
     .required()
     .text("input decaf source")
     .action { case (f, config) => config.copy(source = f) }
+    .validate { f =>
+      if (!f.isFile) Left("not a file")
+      else if (!f.exists) Left("not exist")
+      else Right()
+    }
 
-  opt[PrintStream]('o', "output")
+  opt[File]('o', "output")
     .valueName("file")
-    .action { case (o, config) => config.copy(outputStream = o) }
-    .text("output file (default stdout)")
+    .text("output file for result, available except PA5 (default stdout)")
+    .action { case (o, config) => config.copy(output = new FileOutputStream(o)) }
+    .validate { f =>
+      if (!f.isFile) Left("not a file")
+      else if (!f.getParentFile.exists) Left("directory not exist")
+      else Right()
+    }
 
-  opt[Path]('d', "dir")
+  opt[File]('d', "dir")
     .valueName("directory")
-    .action { case (d, config) => config.copy(outputDir = d) }
-    .text("output directory (enabled when target=jvm, default .)")
+    .text("output directory for low-level code, available >= PA3 (default .)")
+    .action { case (d, config) => config.copy(dstDir = d) }
+    .validate { d =>
+      if (!d.isDirectory) Left("not a directory")
+      else if (!d.exists) Left("not exist")
+      else Right()
+    }
 
   opt[Config.Target.Value]('t', "target")
     .valueName("target")
-    .text("compilation target: jvm (default), PA1, PA2, or PA3")
+    .text("target/task: PA1, PA2, PA3, PA3-JVM, PA4, or PA5")
     .action { case (t, config) => config.copy(target = t) }
+
+  opt[Unit]("log-color")
+    .text("enable colorful log (default plain)")
+    .action { case (_, config) => config.copy(logColor = true) }
+
+  opt[Level]("log-level")
+    .valueName("level")
+    .text("log level: all, severe, warning, info, config, fine, finer, finest, off (default)")
+    .action { case (l, config) => config.copy(logLevel = l) }
+
+  opt[File]("log-file")
+    .valueName("file")
+    .text("also dump log to a file")
+    .action { case (f, config) => config.copy(logFile = f) }
 
   help('h', "help")
     .text("prints this usage text\n")
 
-  //  cmd("debug")
-  //    .children(
-  //      opt[Seq[Config.Target.Value]]('d', "dump")
-  //        .valueName("p1,p2,...")
-  //        .text("dump intermediate results of phases p1, p2, ... to output folder, all if no phase is given")
-  //        .action { case (ps, config) => config.copy(dumpPhases = config.dumpPhases ++ ps) },
-  //
-  //      opt[Level]('L', "log-level")
-  //        .valueName("level")
-  //        .text("log level")
-  //        .action { case (level, config) => setLevel(level); config }
-  //    )
-}
-
-trait OptImplicits {
-
-  implicit val _ReadInputStream: Read[InputStream] = reads { path =>
-    val file = new File(path)
-    if (file.isDirectory)
-      throw new IllegalArgumentException(s"Expected a file, but '$path' is a directory.")
-    else if (!file.exists)
-      throw new IllegalArgumentException(s"File '$path' does not exist.")
-    else if (!path.endsWith(".decaf"))
-      throw new IllegalArgumentException(s"'$path' is not a decaf source.")
-    else new FileInputStream(file)
+  checkConfig { config =>
+    // TODO: setup logger
+    Right()
   }
 
-  implicit val _ReadPrintStream: Read[PrintStream] = reads { path =>
-    val file = new File(path)
-    if (file.isDirectory && !file.exists)
-      throw new IllegalArgumentException(s"Directory '$path' does not exist.")
-    else if (file.isFile && !file.getParentFile.exists)
-      throw new IllegalArgumentException(s"The parent directory of '$path' does not exist.")
-    else new PrintStream(file)
-  }
+  implicit def ReadLogLevel: Read[Level] = Read.reads(Level.parse)
 
-  implicit val _ReadPath: Read[Path] = reads { path =>
-    val file = new File(path)
-    if (file.isFile)
-      throw new IllegalArgumentException(s"'$path' is not a directory.")
-    else if (!file.exists)
-      throw new IllegalArgumentException(s"Directory '$path' does not exist.")
-    else file.toPath
+  implicit def ReadTarget: Read[Target.Value] = Read.reads {
+    case "PA3-JVM" => Target.PA3_JVM
+    case other => Target.withName(other)
   }
-
 }
