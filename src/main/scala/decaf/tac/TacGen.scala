@@ -208,11 +208,11 @@ class TacGen extends Phase[Tree, Program]("tacgen") with Util {
     case ReadLine() => intrinsicCall(Lib.READ_LINE)
 
     // Unary expressions
-    case UnaryExpr(TreeNode.NEG, expr) => emitExpr(expr) >> emit(Neg)
-    case UnaryExpr(TreeNode.NOT, expr) => emitExpr(expr) >> emit(LNot)
+    case Unary(TreeNode.NEG, expr) => emitExpr(expr) >> emit(Neg)
+    case Unary(TreeNode.NOT, expr) => emitExpr(expr) >> emit(LNot)
 
     // Binary expressions
-    case BinaryExpr(op, lhs, rhs) =>
+    case Binary(op, lhs, rhs) =>
       val l = emitExpr(lhs)
       val r = emitExpr(rhs)
       val e = op match {

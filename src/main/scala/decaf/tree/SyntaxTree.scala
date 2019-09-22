@@ -40,7 +40,7 @@ object SyntaxTree extends TreeTmpl {
   // The following nodes only appear in a syntax tree.
 
   /**
-    * Field selection:
+    * Field selection, or simply a local variable:
     * {{{
     *   [<receiver>.]<field>
     * }}}
@@ -64,8 +64,6 @@ object SyntaxTree extends TreeTmpl {
     */
   case class Call(receiver: Option[Expr], method: Id, args: List[Expr])(implicit val annot: ExprAnnot) extends Expr {
     def withReceiver(receiver: Expr): Call = Call(Some(receiver), method, args)(annot).setPos(pos)
-
-    def asExprEval: ExprEval = ExprEval(this)(annot).setPos(pos)
   }
 
 }

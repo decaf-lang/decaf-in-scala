@@ -24,6 +24,21 @@ class UnrecogCharError(char: Char, pos: Pos)
 class IntTooLargeError(literal: String, pos: Pos)
   extends Error(s"integer literal $literal is too large", pos)
 
+/**
+  * Lexer error: illegal escape character.
+  *
+  * Decaf only support the following escape characters: `\n`, `\t`, `\r`, `\"`, and `\\`. Others like `\a` are illegal.
+  *
+  * Example:
+  * {{{
+  * illegal escape character:
+  * str = "\a";
+  * ^
+  * }}}
+  **/
+class BadEscCharError(pos: Pos)
+  extends Error("illegal escape character", pos)
+
 // Syntax error
 
 class SyntaxError(msg: String, pos: Pos)

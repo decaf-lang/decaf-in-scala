@@ -1,6 +1,6 @@
 package decaf.tree
 
-import decaf.parsing.Positional
+import decaf.parsing.{NoPos, Pos, Positional}
 
 object TreeNode {
 
@@ -44,8 +44,6 @@ object TreeNode {
     */
   trait Op {
     val str: String
-
-    override def toString: String = str
   }
 
   implicit def getStrOfOp(op: Op): String = op.str
@@ -170,6 +168,28 @@ object TreeNode {
     */
   case object GE extends CmpOp {
     override val str: String = ">="
+  }
+
+
+  /**
+    * Modifiers.
+    * <p>
+    * Modifiers are encoded as an integer, whose binary representation reveals which modifiers are enabled. In this
+    * way, you can use `+` or `|` to enable multiple modifiers, like we do in system programming.
+    * <p>
+    * In particular, the original Decaf language only has one modifier -- static. If a method is static, then the
+    * lowest bit is set.
+    */
+  class Modifiers(val code: Int = 0, val pos: Pos = NoPos) {
+    def isStatic: Boolean = (code & 1) == 1
+
+    private lazy val flags = if (isStatic) List("STATIC") else Nil
+
+    override def toString: String = flags.mkString(" ")
+  }
+
+  object Modifiers {
+    val STATIC = 1
   }
 
 }

@@ -52,8 +52,7 @@ type
 // Statements
 
 stmt
-    : varDef                                                                # localVarDef
-    | stmtBlock                                                             # block
+    : stmtBlock                                                             # block
     | simple ';'                                                            # simpleStmt
     | IF '(' cond=expr ')' trueBranch=stmt (ELSE falseBranch=stmt)?         # if
     | WHILE '(' cond=expr ')' body=stmt                                     # while
@@ -68,9 +67,10 @@ stmtBlock
     ;
 
 simple
-    : lValue '=' expr                       # assign
-    | (expr '.')? id '(' exprList ')'       # eval
-    | /* empty */                           # skip
+    : lValue '=' expr    # assign
+    | var ('=' expr)?    # localVarDef
+    | expr               # eval
+    | /* empty */        # skip
     ;
 
 lValue
@@ -111,6 +111,8 @@ lit
 
 stringChar
     : ERROR_NEWLINE
+    | ESC
+    | BAD_ESC
     | VALID_CHAR
     ;
 

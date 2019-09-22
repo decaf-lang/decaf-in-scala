@@ -19,7 +19,8 @@ project/plugins/project/
 .idea/
 
 # Tmp files
-TestCases/*/output/
 *.tac
 *.s
-*.class
+TestCases/
+src/main/antlr4/.antlr/
+

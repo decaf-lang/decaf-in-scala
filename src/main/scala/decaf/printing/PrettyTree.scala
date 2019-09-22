@@ -9,8 +9,8 @@ object PrettyTree {
   case class Config(showPos: Boolean = false, showAnnot: Boolean = false)
 
   def prettyElement(element: Any)(implicit printer: IndentPrinter, config: Config): Unit = element match {
+    case null => printer.writeln("<null>")
     case e: Node with Annotated[_] => pretty(e)
-    case Id(name) => printer.writeln(name)
     case Some(e) => prettyElement(e)
     case None => printer.writeln("<none>")
     case es: List[_] =>
@@ -19,7 +19,6 @@ object PrettyTree {
         if (es.isEmpty) printer.writeln("<empty>")
         else es.foreach(prettyElement)
       }
-    case e: String => printer.writeln(quote(e))
     case e => printer.writeln(e.toString)
   }
 

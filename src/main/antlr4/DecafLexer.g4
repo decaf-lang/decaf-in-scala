@@ -81,14 +81,9 @@ UNRECOG_Char:       .;
 mode IN_STRING;
 
 ERROR_NEWLINE:      '\r\n' | '\r' | '\n';
-VALID_CHAR
-    : '\\' 'n'    { setText("\n"); }
-    | '\\' 'r'    { setText("\r"); }
-    | '\\' 't'    { setText("\t"); }
-    | '\\' '"'    { setText("\""); }
-    | '\\' '\\'   { setText("\\"); }
-    | ~[\r\n"]
-    ;
+ESC:                '\\' [nrt"\\];
+BAD_ESC:            '\\' ~[nrt"\\];
+VALID_CHAR:         ~[\r\n"];
 
 CLOSE_STRING:       '"' -> popMode;
 UNTERM_STRING:      EOF -> popMode;

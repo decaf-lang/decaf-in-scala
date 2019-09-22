@@ -165,7 +165,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
           case (_: MemberVarSymbol, _: VarSymbol) =>
             issue(new OverridingVarError(field.name, field.pos))
             None
-          case (suspect: MethodSymbol, m @ MethodDef(id, params, returnType, body, isStatic))
+          case (suspect: MethodSymbol, m @ MethodDef(mod, id, returnType, params, body))
             if !suspect.isStatic && !m.isStatic =>
             // Only non-static methods can be overriden, but the type signature must be equivalent.
             val ret = typeTypeLit(returnType)
@@ -174,14 +174,14 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
               case retType =>
                 val formalScope = new FormalScope
                 val formalCtx = ctx.open(formalScope)
-                if (!isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
+                if (!m.isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
                 val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 if (funType <= suspect.typ) { // override success
                   val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass, Some(suspect))
                   ctx.declare(symbol)
                   val block = resolveBlock(body)(formalCtx)
-                  Some(Typed.MethodDef(id, typedParams, ret, block, isStatic)(symbol))
+                  Some(Typed.MethodDef(mod, id, ret, typedParams, block)(symbol))
                 } else { // override failure
                   issue(new BadOverrideError(m.name, suspect.owner.name, m.pos))
                   None
@@ -191,7 +191,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
         }
       case None =>
         field match {
-          case v @ VarDef(typeLit, id) =>
+          case v @ VarDef(typeLit, id, _) =>
             val lit = typeTypeLit(typeLit)
             lit.typ match {
               case NoType => None
@@ -203,20 +203,20 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
                 ctx.declare(symbol)
                 Some(Typed.VarDef(lit, id)(symbol))
             }
-          case m @ MethodDef(id, params, returnType, body, isStatic) =>
+          case m @ MethodDef(mod, id, returnType, params, body) =>
             val rt = typeTypeLit(returnType)
             rt.typ match {
               case NoType => None
               case retType =>
                 val formalScope = new FormalScope
                 val formalCtx: ScopeContext = ctx.open(formalScope)
-                if (!isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
+                if (!m.isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
                 val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass)
                 ctx.declare(symbol)
                 val block = resolveBlock(body)(formalCtx)
-                Some(Typed.MethodDef(id, typedParams, rt, block, isStatic)(symbol))
+                Some(Typed.MethodDef(mod, id, rt, typedParams, block)(symbol))
             }
         }
     }

@@ -184,7 +184,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
     case ReadLine() => callScanner("nextLine")
 
     // Unary expressions
-    case UnaryExpr(op, expr) =>
+    case Unary(op, expr) =>
       emitExpr(expr)
       op match {
         case TreeNode.NEG => mv.visitInsn(Opcodes.INEG)
@@ -195,7 +195,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
       }
 
     // Binary expressions
-    case BinaryExpr(op, lhs, rhs) =>
+    case Binary(op, lhs, rhs) =>
       emitExpr(lhs)
       emitExpr(rhs)
       op match {

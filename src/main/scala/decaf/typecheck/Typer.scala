@@ -1,9 +1,9 @@
 package decaf.typecheck
 
+import decaf.annot.FlagImplicit._
 import decaf.annot.ScopeImplicit._
 import decaf.annot.SymbolImplicit._
 import decaf.annot.TypeImplicit._
-import decaf.annot.FlagImplicit._
 import decaf.annot._
 import decaf.driver.{Config, Phase}
 import decaf.error._
@@ -62,13 +62,13 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         val ctx = global.open(symbol.scope)
         val checkedFields = fields.map {
           case v: VarDef => v
-          case m @ MethodDef(id, params, returnType, body, isStatic) =>
+          case m @ MethodDef(mod, id, returnType, params, body) =>
             val formalCtx = ctx.open(m.symbol.scope)
             val checkedBody = checkBlock(body)(formalCtx)
             // Check if the body always returns a value, when the method is non-void
             if (!m.symbol.returnType.isVoidType && checkedBody.no)
               issue(new MissingReturnError(checkedBody.pos))
-            MethodDef(id, params, returnType, checkedBody, isStatic)(m.symbol).setPos(m.pos)
+            MethodDef(mod, id, returnType, params, checkedBody)(m.symbol).setPos(m.pos)
         }
         ClassDef(id, parent, checkedFields)(symbol).setPos(clazz.pos)
     }
@@ -200,7 +200,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
       case Syn.ReadInt() => ReadInt()(IntType)
       case Syn.ReadLine() => ReadLine()(StringType)
 
-      case Syn.UnaryExpr(op, operand) =>
+      case Syn.Unary(op, operand) =>
         val e = typeExpr(operand)
         e.typ match {
           case NoType => // avoid nested errors
@@ -211,9 +211,9 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         // Let's say the operator is `-`, then one possibly wants an integer as the operand.
         // Once he/she fixes the operand, according to our type inference rule, the whole unary expression
         // must have type int! Thus, we simply _assume_ it has type int, rather than `NoType`.
-        UnaryExpr(op, e)(resultTypeOf(op))
+        Unary(op, e)(resultTypeOf(op))
 
-      case Syn.BinaryExpr(op, lhs, rhs) =>
+      case Syn.Binary(op, lhs, rhs) =>
         val l = typeExpr(lhs)
         val r = typeExpr(rhs)
         (l.typ, r.typ) match {
@@ -221,13 +221,13 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
           case (lt, rt) =>
             if (!compatible(op, lt, rt)) issue(new IncompatBinOpError(op, lt, rt, expr.pos))
         }
-        BinaryExpr(op, l, r)(resultTypeOf(op)) // make a fair guess
+        Binary(op, l, r)(resultTypeOf(op)) // make a fair guess
 
       case Syn.NewArray(elemType, length) =>
         val t = typeTypeLit(elemType)
         val l = typeExpr(length)
-        if (t.typ.isVoidType) issue(new BadArrElementError(elemType.pos))
-        if (l.typ !== IntType) issue(new BadNewArrayLength(length.pos))
+        if (t.typ.isVoidType) issue(new BadArrElementError(elemType.pos)) // TODO: err
+        if (l.typ !== IntType) issue(new BadNewArrayLength(length.pos)) // TODO: if no error
         NewArray(t, l)(ArrayType(t.typ)) // make a fair guess
 
       case Syn.NewClass(id) =>

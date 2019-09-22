@@ -1,2 +1,0 @@
-Exception in thread "main" java.lang.ClassCastException: class Main cannot be cast to class A (Main and A are in unnamed module of loader 'app')
-	at Main.main(Unknown Source)

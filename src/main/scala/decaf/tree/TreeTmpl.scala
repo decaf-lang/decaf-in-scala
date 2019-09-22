@@ -1,6 +1,7 @@
 package decaf.tree
 
 import decaf.annot.{Annot, Annotated}
+import decaf.parsing.{NoPos, Pos}
 import decaf.tree.TreeNode._
 
 /**
@@ -71,7 +72,7 @@ trait TreeTmpl {
     * }}}
     * Initialization is not supported.
     */
-  case class VarDef(typeLit: TypeLit, id: Id)(implicit val annot: MemberVarAnnot)
+  case class VarDef(typeLit: TypeLit, id: Id, init: Option[Expr] = None)(implicit val annot: MemberVarAnnot)
     extends Field with Var with Annotated[MemberVarAnnot] {
     type TypeLitType = TypeLit
   }
@@ -87,10 +88,14 @@ trait TreeTmpl {
     * @param params     parameters, each is a typed identifier (or _formal_, as said in the language specification)
     * @param returnType return type
     * @param body       method body (a statement block, by syntactic grammar)
-    * @param isStatic   is this method static?
+    * @param modifiers
     */
-  case class MethodDef(id: Id, params: List[LocalVarDef], returnType: TypeLit, body: Block, isStatic: Boolean)
-                      (implicit val annot: MethodAnnot) extends Field with Annotated[MethodAnnot]
+  case class MethodDef(modifiers: Modifiers, id: Id, returnType: TypeLit, params: List[LocalVarDef], body: Block)
+                      (implicit val annot: MethodAnnot)
+    extends Field with Annotated[MethodAnnot] {
+
+    def isStatic: Boolean = modifiers.isStatic
+  }
 
   /**
     * Type. Decaf only supports
@@ -155,9 +160,11 @@ trait TreeTmpl {
     * }}}
     * Initialization is not supported.
     */
-  case class LocalVarDef(typeLit: TypeLit, id: Id)(implicit val annot: LocalVarAnnot)
+  case class LocalVarDef(typeLit: TypeLit, id: Id, init: Option[Expr] = None)(implicit val annot: LocalVarAnnot)
     extends Stmt with Var with Annotated[LocalVarAnnot] {
     type TypeLitType = TypeLit
+
+    var assignPos: Pos = NoPos
   }
 
   /**
@@ -178,11 +185,6 @@ trait TreeTmpl {
   }
 
   /**
-    * Simple statement.
-    */
-  trait SimpleStmt extends ControlFlowStmt
-
-  /**
     * Assignment:
     * {{{
     *   <lhs> = <rhs>;
@@ -191,19 +193,19 @@ trait TreeTmpl {
     * @param lhs left hand side, i.e. the left-value to be assigned
     * @param rhs right hand side, i.e. the value to assign
     */
-  case class Assign(lhs: LValue, rhs: Expr)(implicit val annot: StmtAnnot) extends SimpleStmt
+  case class Assign(lhs: LValue, rhs: Expr)(implicit val annot: StmtAnnot) extends ControlFlowStmt
 
   /**
     * Expression evaluation, typically a method call.
     *
     * @param expr expression to be evaluated
     */
-  case class ExprEval(expr: Expr)(implicit val annot: StmtAnnot) extends SimpleStmt
+  case class ExprEval(expr: Expr)(implicit val annot: StmtAnnot) extends ControlFlowStmt
 
   /**
     * Empty statement, do nothing.
     */
-  case class Skip()(implicit val annot: StmtAnnot) extends SimpleStmt {
+  case class Skip()(implicit val annot: StmtAnnot) extends ControlFlowStmt {
     override def isEmpty: Boolean = true
   }
 
@@ -303,7 +305,7 @@ trait TreeTmpl {
   }
 
   /**
-    * String literal.
+    * String literal. Value is already quoted.
     */
   case class StringLit(value: String)(implicit val annot: ExprAnnot) extends Lit {
     type T = String
@@ -347,7 +349,7 @@ trait TreeTmpl {
     * @param op      unary operator
     * @param operand operand
     */
-  case class UnaryExpr(op: Op, operand: Expr)(implicit val annot: ExprAnnot) extends Expr
+  case class Unary(op: Op, operand: Expr)(implicit val annot: ExprAnnot) extends Expr
 
   /**
     * Binary expression.
@@ -356,7 +358,7 @@ trait TreeTmpl {
     * @param lhs left operand
     * @param rhs right operand
     */
-  case class BinaryExpr(op: Op, lhs: Expr, rhs: Expr)(implicit val annot: ExprAnnot) extends Expr
+  case class Binary(op: Op, lhs: Expr, rhs: Expr)(implicit val annot: ExprAnnot) extends Expr
 
   /**
     * IO expression for reading an integer from stdin:
@@ -412,5 +414,4 @@ trait TreeTmpl {
     * Cast the given object `obj` into class type `to`.
     */
   case class ClassCast(obj: Expr, to: ClassRef)(implicit val annot: ExprAnnot) extends Expr
-
 }
