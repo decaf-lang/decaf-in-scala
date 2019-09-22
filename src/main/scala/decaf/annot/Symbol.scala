@@ -24,6 +24,8 @@ sealed trait Symbol extends Annot {
 
   def str: String
 
+  var domain: Scope = _
+
   override def toString: String = s"(${ pos.line },${ pos.column }) -> " + str
 }
 
@@ -76,7 +78,8 @@ class MethodSymbol(tree: SyntaxTree.MethodDef, val typ: FunType, val scope: Form
 
   override def pos: Pos = tree.pos
 
-  override def str: String = (if (isStatic) "static " else "") + s"function $name : " + typ.toString
+  override def str: String =
+    (if (tree.modifiers.isEmpty) "" else s"${ tree.modifiers } ") + s"function $name : " + typ.toString
 
   scope.owner = this
 

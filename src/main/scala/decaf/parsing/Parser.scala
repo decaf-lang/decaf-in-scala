@@ -171,8 +171,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       if (ctx.expr == null) theVar
       else {
         val init = ctx.expr.accept(ExprVisitor)
-        val ret = LocalVarDef(theVar.typeLit, theVar.id, Some(init)).setPos(theVar.pos)
-        ret.assignPos = getPos(ctx.ASSIGN.getSymbol)
+        val ret = LocalVarDef(theVar.typeLit, theVar.id, Some(init), getPos(ctx.ASSIGN.getSymbol)).setPos(theVar.pos)
         ret
       }
     }

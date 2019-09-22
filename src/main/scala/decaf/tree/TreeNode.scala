@@ -183,6 +183,8 @@ object TreeNode {
   class Modifiers(val code: Int = 0, val pos: Pos = NoPos) {
     def isStatic: Boolean = (code & 1) == 1
 
+    def isEmpty: Boolean = code == 0
+
     private lazy val flags = if (isStatic) List("STATIC") else Nil
 
     override def toString: String = flags.mkString(" ")

@@ -1,5 +1,7 @@
 package decaf.annot
 
+import decaf.parsing.Pos
+
 import scala.collection.mutable
 
 /**
@@ -14,6 +16,8 @@ sealed trait Scope extends Annot {
   protected var symbols: mutable.Map[String, Item] = new mutable.HashMap
 
   var owner: Owner = _
+
+  def isEmpty: Boolean = symbols.isEmpty
 
   def values: List[Item] = symbols.values.toList.sortBy(_.pos)
 
@@ -33,6 +37,7 @@ sealed trait Scope extends Annot {
 
   def declare(symbol: Item): Unit = {
     symbols(symbol.name) = symbol
+    symbol.domain = this
   }
 
   def isLocalOrFormal: Boolean = false
@@ -76,6 +81,23 @@ class LocalScope extends Scope {
   val nestedScopes: mutable.ArrayBuffer[LocalScope] = new mutable.ArrayBuffer[LocalScope]
 }
 
+/**
+  * A symbol table, which is organized as a stack of scopes, maintained by {@link decaf.frontend.typecheck.Namer}.
+  * A typical full scope stack looks like the following:
+  * {{{
+  *     LocalScope   --- stack top (current scope)
+  *     ...          --- many nested local scopes
+  *     LocalScope
+  *     FormalScope
+  *     ClassScope
+  *     ...          --- many parent class scopes
+  *     ClassScope
+  *     GlobalScope  --- stack bottom
+  * }}}
+  * Make sure the global scope is always at the bottom, and NO class scope appears in neither formal nor local scope.
+  *
+  * @see Scope
+  */
 class ScopeContext private(global: GlobalScope, private val scopes: List[Scope], val currentScope: Scope,
                            val currentClass: ClassSymbol, val currentMethod: MethodSymbol) {
 
@@ -91,23 +113,25 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope],
   }
 
   /**
-    * Find a symbol by key. Search in all possible scopes while the predicate `p` holds, and returns the innermost
-    * result.
+    * Find a symbol by key. Search in all possible scopes while the predicate `cond` holds, and the found symbols
+    * satisfies `p`. Returns the innermost result.
     *
     * @param key    the key
-    * @param p      the predicate over the currently seeing scope
+    * @param cond   the predicate over the currently seeing scope
+    * @param p      the predicate over the suspect symbol
     * @param scopes all remaining scopes to be searched
     * @return innermost found symbol (if any)
     */
   @scala.annotation.tailrec
-  private def findWhile(key: String, p: Scope => Boolean, scopes: List[Scope] = scopes :+ global): Option[Symbol] =
+  private def findWhile(key: String, cond: Scope => Boolean = _ => true, p: Symbol => Boolean = _ => true,
+                        scopes: List[Scope] = scopes :+ global): Option[Symbol] =
     scopes match {
-      case Nil => if (!p(global)) None else global.find(key)
+      case Nil => None
       case s :: ss =>
-        if (!p(s)) None
+        if (!cond(s)) None
         else s.find(key) match {
-          case Some(symbol) => Some(symbol)
-          case None => findWhile(key, p, ss)
+          case Some(symbol) if p(symbol) => Some(symbol)
+          case _ => findWhile(key, cond, p, ss)
         }
     }
 
@@ -115,10 +139,20 @@ class ScopeContext private(global: GlobalScope, private val scopes: List[Scope],
     * Lookup a symbol by key. By saying "lookup", the user expects that the symbol is found.
     * In this way, we will always search in all possible scopes and returns the innermost result.
     *
-    * @param key the key
+    * @param key symbol's name
     * @return innermost found symbol (if any)
     */
-  def lookup(key: String): Option[Symbol] = findWhile(key, _ => true)
+  def lookup(key: String): Option[Symbol] = findWhile(key)
+
+  /**
+    * Same with {@link #lookup} but we restrict the symbol's position to be before the given `pos`.
+    *
+    * @param key symbol's name
+    * @param pos position
+    * @return innermost found symbol before `pos` (if any)
+    */
+  def lookupBefore(key: String, pos: Pos): Option[Symbol] = findWhile(key, _ => true,
+    s => !(s.domain.isLocalOrFormal && s.pos >= pos))
 
   /**
     * Find if `key` conflicts with some already defined symbol. Rules:

@@ -160,11 +160,22 @@ trait TreeTmpl {
     * }}}
     * Initialization is not supported.
     */
-  case class LocalVarDef(typeLit: TypeLit, id: Id, init: Option[Expr] = None)(implicit val annot: LocalVarAnnot)
+  case class LocalVarDef(typeLit: TypeLit, id: Id, init: Option[Expr] = None, assignPos: Pos = NoPos)
+                        (implicit val annot: LocalVarAnnot)
     extends Stmt with Var with Annotated[LocalVarAnnot] {
     type TypeLitType = TypeLit
 
-    var assignPos: Pos = NoPos
+    override def productArity: Int = 3
+  }
+
+  /**
+    * Statement block:
+    * {{{
+    *   { <stmt1> <stmt2> ... }
+    * }}}
+    */
+  case class Block(stmts: List[Stmt] = Nil)(implicit val annot: BlockAnnot) extends Stmt with Annotated[BlockAnnot] {
+    override def isEmpty: Boolean = stmts.isEmpty
   }
 
   /**
@@ -173,16 +184,6 @@ trait TreeTmpl {
     * They should have the same type of annotation in a specialized tree.
     */
   trait ControlFlowStmt extends Stmt with Annotated[StmtAnnot]
-
-  /**
-    * Statement block:
-    * {{{
-    *   { <stmt1> <stmt2> ... }
-    * }}}
-    */
-  case class Block(stmts: List[Stmt] = Nil)(implicit val annot: StmtAnnot) extends ControlFlowStmt {
-    override def isEmpty: Boolean = stmts.isEmpty
-  }
 
   /**
     * Assignment:
@@ -414,4 +415,5 @@ trait TreeTmpl {
     * Cast the given object `obj` into class type `to`.
     */
   case class ClassCast(obj: Expr, to: ClassRef)(implicit val annot: ExprAnnot) extends Expr
+
 }

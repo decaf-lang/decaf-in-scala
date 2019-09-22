@@ -35,6 +35,8 @@ sealed trait Type extends Annot {
   def isVoidType: Boolean = false
 
   def isBaseType: Boolean = false
+
+  def isFuncType: Boolean = false
 }
 
 class BaseType extends Type {
@@ -92,7 +94,7 @@ case class ClassType(name: String, parent: Option[ClassType] = None) extends Typ
 
   override def isClassType: Boolean = true
 
-  override def toString: String = s"class : $name"
+  override def toString: String = s"class $name"
 }
 
 case class ArrayType(elemType: Type) extends Type {
@@ -106,7 +108,14 @@ case class ArrayType(elemType: Type) extends Type {
     case _ => false
   }
 
-  override def toString: String = s"$elemType[]"
+  override def toString: String = {
+    if (elemType.isFuncType) {
+      // NOTE: [] has higher priority than functions, so we must add extra parenthesis, e.g.
+      // `(int => int)[]` means an array of functions from integers to integers, but
+      // `int => int[]` means a function from integers to integer arrays
+      s"($elemType)[]"
+    } else s"$elemType[]"
+  }
 }
 
 case class FunType(params: List[Type], ret: Type) extends Type {
@@ -124,13 +133,15 @@ case class FunType(params: List[Type], ret: Type) extends Type {
     case _ => false
   }
 
+  override def isFuncType: Boolean = true
+
   override def toString: String = {
     val ps = params match {
       case Nil => "()"
       case t :: Nil => t.toString
       case ts => s"(${ ts.mkString(", ") })"
     }
-    s"$ps -> $ret"
+    s"$ps => $ret"
   }
 }
 

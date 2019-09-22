@@ -12,18 +12,14 @@ import decaf.tree.{TypedTree => Typed}
 import scala.collection.mutable
 
 /**
-  * The namer inputs a SyntaxTree and outputs a NamedTree. In this phase, we focus on resolving all definitions, and
-  * leave the type check to the typer. In details, the following are resolved and checked:
-  * - class inheritance
-  * - method overriding
-  * - class member declarations: including variables and method signatures
-  * - local variable declarations
+  * The namer phase: resolve all symbols defined in the abstract syntax tree and store them in symbol tables (i.e.
+  * scopes).
   */
 class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
 
   class Context {
     val global: GlobalScope = new GlobalScope
-    val classes: mutable.HashMap[String, ClassDef] = new mutable.HashMap
+    val classes: mutable.Map[String, ClassDef] = new mutable.TreeMap
   }
 
   override def transform(tree: Tree): Typed.Tree = {
@@ -84,8 +80,11 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
     Typed.TopLevel(resolvedClasses)(ctx.global).setPos(tree.pos)
   }
 
+  /**
+    * Check if class inheritance form cycle(s).
+    */
   private def checkCycles()(implicit ctx: Context): Unit = {
-    val visitedTime = new mutable.HashMap[String, Int]
+    val visitedTime = new mutable.TreeMap[String, Int]
     ctx.classes.keys.foreach { visitedTime(_) = 0 }
 
     @scala.annotation.tailrec
@@ -113,6 +112,11 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
     }
   }
 
+  /**
+    * Create class symbols and declare in the global scope.
+    *
+    * @param ctx context
+    */
   private def createClassSymbols()(implicit ctx: Context): Unit = {
     def create(clazz: ClassDef): Unit = {
       if (!ctx.global.contains(clazz.name)) {
@@ -135,8 +139,14 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
     ctx.classes.values.foreach(create)
   }
 
+  /**
+    * Resolve class definitions.
+    *
+    * @param ctx context
+    * @return resolved classes
+    */
   def resolveClasses(implicit ctx: Context): List[Typed.ClassDef] = {
-    val resolved = new mutable.HashMap[String, Typed.ClassDef]
+    val resolved = new mutable.TreeMap[String, Typed.ClassDef]
 
     def resolve(clazz: ClassDef): Unit = {
       if (!resolved.contains(clazz.name)) {
@@ -158,6 +168,13 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
     ctx.classes.keys.map(resolved).toList
   }
 
+  /**
+    * Resolve a field definition.
+    *
+    * @param field field
+    * @param ctx   scope context
+    * @return resolved field
+    */
   def resolveField(field: Field)(implicit ctx: ScopeContext): Option[Typed.Field] = {
     val resolved = ctx.findConflict(field.name) match {
       case Some(earlier) =>
@@ -191,7 +208,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
         }
       case None =>
         field match {
-          case v @ VarDef(typeLit, id, _) =>
+          case v @ VarDef(typeLit, id, init) =>
             val lit = typeTypeLit(typeLit)
             lit.typ match {
               case NoType => None
@@ -201,7 +218,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
               case t =>
                 val symbol = new MemberVarSymbol(v, t, ctx.currentClass)
                 ctx.declare(symbol)
-                Some(Typed.VarDef(lit, id)(symbol))
+                Some(Typed.VarDef(lit, id, init)(symbol))
             }
           case m @ MethodDef(mod, id, returnType, params, body) =>
             val rt = typeTypeLit(returnType)
@@ -223,12 +240,23 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
     resolved.map(_.setPos(field.pos))
   }
 
-  implicit val noReturn: Flag = No
-
+  /**
+    * Resolve a statement block.
+    *
+    * @param block statement block
+    * @param ctx   scope context
+    * @return resolved block
+    */
   def resolveBlock(block: Block)(implicit ctx: ScopeContext): Typed.Block = {
-    val local = ctx.open(new LocalScope)
-    val ss = block.stmts.map { resolveStmt(_)(local) }
-    Typed.Block(ss).setPos(block.pos)
+    val localScope = ctx.currentScope match {
+      case s: FormalScope => s.nestedScope
+      case s: LocalScope =>
+        s.nestedScopes += new LocalScope
+        s.nestedScopes.last
+    }
+    val localCtx = ctx.open(localScope)
+    val ss = block.stmts.map { resolveStmt(_)(localCtx) }
+    Typed.Block(ss)(localScope).setPos(block.pos)
   }
 
   def resolveStmt(stmt: Stmt)(implicit ctx: ScopeContext): Typed.Stmt = {
@@ -244,7 +272,16 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
         Typed.If(cond, t, f)
       case While(cond, body) => Typed.While(cond, resolveBlock(body))
       case For(init, cond, update, body) =>
-        Typed.For(resolveStmt(init), cond, resolveStmt(update), resolveBlock(body))
+        // Since `init` and `update` may declare local variables, we must first open the local scope of `body`, and
+        // then resolve `init`, `update` and statements inside `body`.
+        val localScope = new LocalScope
+        ctx.currentScope.asInstanceOf[LocalScope].nestedScopes += localScope
+        val localCtx = ctx.open(localScope)
+        val i = resolveStmt(init)(localCtx)
+        val u = resolveStmt(update)(localCtx)
+        val ss = body.stmts.map { resolveStmt(_)(localCtx) }
+        val b = Typed.Block(ss)(localScope).setPos(body.pos)
+        Typed.For(i, cond, u, b)
       case Break() => Typed.Break()
       case Return(expr) => Typed.Return(expr)
       case Print(exprs) => Typed.Print(exprs)
@@ -270,7 +307,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
           case t =>
             val symbol = new LocalVarSymbol(v, t, isParam)
             ctx.declare(symbol)
-            Some(Typed.LocalVarDef(typedTypeLit, v.id)(symbol))
+            Some(Typed.LocalVarDef(typedTypeLit, v.id, v.init, v.assignPos)(symbol))
         }
     }
   }

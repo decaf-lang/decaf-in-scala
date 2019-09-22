@@ -1,13 +1,14 @@
 package decaf.typecheck
 
-import decaf.annot.FlagImplicit._
 import decaf.annot.ScopeImplicit._
 import decaf.annot.SymbolImplicit._
 import decaf.annot.TypeImplicit._
 import decaf.annot._
 import decaf.driver.{Config, Phase}
 import decaf.error._
+import decaf.parsing.Pos
 import decaf.printing.{IndentPrinter, PrettyScope}
+import decaf.tree.SyntaxTree.NoAnnot
 import decaf.tree.TreeNode._
 import decaf.tree.TypedTree._
 import decaf.tree.{SyntaxTree => Syn}
@@ -64,10 +65,11 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
           case v: VarDef => v
           case m @ MethodDef(mod, id, returnType, params, body) =>
             val formalCtx = ctx.open(m.symbol.scope)
-            val checkedBody = checkBlock(body)(formalCtx)
+            val (checkedBody, returns) = checkBlock(body)(formalCtx)
             // Check if the body always returns a value, when the method is non-void
-            if (!m.symbol.returnType.isVoidType && checkedBody.no)
+            if (!m.symbol.returnType.isVoidType && !returns) {
               issue(new MissingReturnError(checkedBody.pos))
+            }
             MethodDef(mod, id, returnType, params, checkedBody)(m.symbol).setPos(m.pos)
         }
         ClassDef(id, parent, checkedFields)(symbol).setPos(clazz.pos)
@@ -90,30 +92,50 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
     }
   }
 
-  def checkBlock(block: Block)(implicit ctx: ScopeContext, insideLoop: Boolean = false): Block = {
-    val scope = ctx.currentScope match {
-      case s: FormalScope => s.nestedScope
-      case s: LocalScope =>
-        s.nestedScopes += new LocalScope
-        s.nestedScopes.last
-    }
-    val local = ctx.open(scope)
-    val ss = block.stmts.map { checkStmt(_)(local, insideLoop) }
-    val ret = if (ss.isEmpty) No else ss.last match {
-      case c: ControlFlowStmt => c.flag // a block returns a value if its last statement does so
-      case _ => No
-    }
+  /**
+    * Type check a statement block.
+    *
+    * @param block      statement block
+    * @param ctx        scope context
+    * @param insideLoop are we inside a loop?
+    * @return a pair: the typed block, and a boolean indicating if this block returns a value
+    */
+  def checkBlock(block: Block)(implicit ctx: ScopeContext, insideLoop: Boolean = false): (Block, Boolean) = {
+    val localCtx = ctx.open(block.scope)
+    val ss = block.stmts.map { checkStmt(_)(localCtx, insideLoop) }
+    val returns = ss.nonEmpty && ss.last._2 // a block returns a value iff its last statement does so
 
-    Block(ss)(ret).setPos(block.pos)
+    (Block(ss.map(_._1))(block.scope).setPos(block.pos), returns)
   }
 
-  def checkStmt(stmt: Stmt)(implicit ctx: ScopeContext, insideLoop: Boolean): Stmt = {
-    implicit val noReturn: Flag = No
-
+  /**
+    * Type check a statement.
+    *
+    * @param stmt       statement
+    * @param ctx        scope context
+    * @param insideLoop are we inside a loop?
+    * @return a pair: the typed statement, and a boolean indicating if this statement returns a value
+    */
+  def checkStmt(stmt: Stmt)(implicit ctx: ScopeContext, insideLoop: Boolean): (Stmt, Boolean) = {
     val checked = stmt match {
       case block: Block => checkBlock(block)
 
-      case v: LocalVarDef => ctx.declare(v.symbol); v
+      case v: LocalVarDef =>
+        v.init match {
+          case Some(expr) =>
+            // Special: we need to be careful that the initializer may cyclically refer to the declared variable, e.g.
+            // var x = x + 1.
+            //     ^
+            //     before pos
+            // So, we must rectify the "before pos" as the position of the declared variable.
+            correctBeforePos = Some(v.id.pos)
+            val r = typeExpr(expr)
+            correctBeforePos = None // recover
+
+            if (!(r.typ <= v.typeLit.typ)) issue(new IncompatBinOpError("=", v.typeLit.typ, r.typ, v.assignPos))
+            (LocalVarDef(v.typeLit, v.id, Some(r))(v.symbol), false)
+          case None => (v, false)
+        }
 
       case Assign(lhs, rhs) =>
         val l = typeLValue(lhs)
@@ -124,37 +146,40 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
           case t if !(r.typ <= t) => issue(new IncompatBinOpError("=", l.typ, r.typ, stmt.pos))
           case _ => // do nothing
         }
-        Assign(l, r)
+        (Assign(l, r), false)
 
       case ExprEval(expr) =>
         val e = typeExpr(expr)
-        ExprEval(e)
+        (ExprEval(e), false)
 
-      case Skip() => Skip()
+      case Skip() => (Skip(), false)
 
       case If(cond, trueBranch, falseBranch) =>
         val c = checkTestExpr(cond)
-        val t = checkBlock(trueBranch)
+        val (t, trueReturns) = checkBlock(trueBranch)
         val f = falseBranch.map(checkBlock)
         // if-stmt returns a value if both branches return
-        val ret = if (t.yes && f.isDefined && f.get.yes) Yes else No
-        If(c, t, f)(ret)
+        val returns = trueReturns && f.isDefined && f.get._2
+        (If(c, t, f.map(_._1)), returns)
 
       case While(cond, body) =>
         val c = checkTestExpr(cond)
-        val b = checkBlock(body)(ctx, insideLoop = true)
-        While(c, b)
+        val (b, _) = checkBlock(body)(ctx, insideLoop = true)
+        (While(c, b), false)
 
       case For(init, cond, update, body) =>
-        val i = checkStmt(init)
-        val c = checkTestExpr(cond)
-        val u = checkStmt(update)
-        val b = checkBlock(body)(ctx, insideLoop = true)
-        For(i, c, u, b)
+        // Since `init` and `update` may declare local variables, remember to first open the local scope of `body`.
+        val local = ctx.open(body.scope)
+        val (i, _) = checkStmt(init)(local, insideLoop)
+        val c = checkTestExpr(cond)(local)
+        val (u, _) = checkStmt(update)(local, insideLoop)
+        val ss = body.stmts.map { checkStmt(_)(local, insideLoop = true) }
+        val b = Block(ss.map(_._1))(body.scope)
+        (For(i, c, u, b), false)
 
       case Break() =>
         if (!insideLoop) issue(new BreakOutOfLoopError(stmt.pos))
-        Break()
+        (Break(), false)
 
       case Return(expr) =>
         val expected = ctx.currentMethod.returnType
@@ -164,7 +189,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         }
         val actual = e.map(_.typ).getOrElse(VoidType)
         if (actual.noError && !(actual <= expected)) issue(new BadReturnTypeError(expected, actual, stmt.pos))
-        Return(e)(if (e.isDefined) Yes else No) // returned if it has an expression
+        (Return(e), e.isDefined)
 
       case Print(exprs) =>
         val es = exprs.zipWithIndex.map {
@@ -173,12 +198,22 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
             if (e.typ.noError && !e.typ.isBaseType) issue(new BadPrintArgError(i + 1, e.typ, expr.pos))
             e
         }
-        Print(es)
+        (Print(es), false)
     }
-    checked.setPos(stmt.pos)
+
+    checked match {
+      case (s, r) => (s.setPos(stmt.pos), r)
+    }
   }
 
-  def checkTestExpr(expr: Syn.Expr)(implicit ctx: ScopeContext): Expr = {
+  /**
+    * Check if an expression has type bool.
+    *
+    * @param expr expression
+    * @param ctx  scope context
+    * @return true if it has type bool
+    */
+  private def checkTestExpr(expr: Syn.Expr)(implicit ctx: ScopeContext): Expr = {
     val e = typeExpr(expr)
     if (e.typ !== BoolType) issue(new BadTestExpr(expr.pos))
     e
@@ -186,6 +221,13 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
 
   implicit val noType: NoType.type = NoType
 
+  /**
+    * Type check an expression.
+    *
+    * @param expr expression
+    * @param ctx  scope context
+    * @return typed expression
+    */
   def typeExpr(expr: Syn.Expr)(implicit ctx: ScopeContext): Expr = {
     val err = UntypedExpr(expr)
 
@@ -291,8 +333,8 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
     typed.setPos(expr.pos)
   }
 
-  def typeCall(call: Syn.Call, receiver: Option[Expr], method: MethodSymbol)
-              (implicit ctx: ScopeContext): Expr = {
+  private def typeCall(call: Syn.Call, receiver: Option[Expr], method: MethodSymbol)
+                      (implicit ctx: ScopeContext): Expr = {
     // Cannot call this's member methods in a static method
     if (receiver.isEmpty && ctx.currentMethod.isStatic && !method.isStatic)
       issue(new RefNonStaticError(method.name, ctx.currentMethod.name, call.pos))
@@ -313,14 +355,15 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
     else MemberCall(receiver.getOrElse(This()), method, as)(method.returnType)
   }
 
-  def typeLValue(expr: Syn.LValue)(implicit ctx: ScopeContext): LValue = {
+  private def typeLValue(expr: Syn.LValue)(implicit ctx: ScopeContext): LValue = {
     val err = UntypedLValue(expr)
 
     val typed = expr match {
       // Variable, which should be complicated since a legal variable could refer to a local var,
       // a visible member var (, and a class name).
       case Syn.VarSel(None, id) =>
-        ctx.lookup(id) match {
+        // Be careful we may be inside the initializer, if so, load the correct "before position".
+        ctx.lookupBefore(id, correctBeforePos.getOrElse(expr.pos)) match {
           case Some(sym) => sym match {
             case v: LocalVarSymbol => LocalVar(v)(v.typ)
             case v: MemberVarSymbol =>
@@ -369,19 +412,21 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
     typed.setPos(expr.pos)
   }
 
-  def compatible(op: Op, operand: Type): Boolean = op match {
+  private var correctBeforePos: Option[Pos] = None
+
+  private def compatible(op: Op, operand: Type): Boolean = op match {
     case NEG => operand === IntType // if e : int, then -e : int
     case NOT => operand === BoolType // if e : bool, then !e : bool
   }
 
-  def compatible(op: Op, lhs: Type, rhs: Type): Boolean = op match {
+  private def compatible(op: Op, lhs: Type, rhs: Type): Boolean = op match {
     case _: ArithOp => (lhs === IntType) && (rhs === IntType) // if e1, e2 : int, then e1 + e2 : int
     case _: LogicOp => (lhs === BoolType) && (rhs === BoolType) // if e1, e2 : bool, then e1 && e2 : bool
     case _: EqOp => (lhs <= rhs) || (rhs <= lhs) // if e1 : T1, e2 : T2, T1 <: T2 or T2 <: T1, then e1 == e2 : bool
     case _: CmpOp => (lhs === IntType) && (rhs === IntType) // if e1, e2 : int, then e1 > e2 : bool
   }
 
-  def resultTypeOf(op: Op): Type = op match {
+  private def resultTypeOf(op: Op): Type = op match {
     case NEG => IntType
     case NOT => BoolType
     case _: ArithOp => IntType
