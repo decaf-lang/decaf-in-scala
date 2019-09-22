@@ -1,18 +1,18 @@
-package decaf.typecheck
+package decaf.frontend.typecheck
 
-import decaf.annot.ScopeImplicit._
-import decaf.annot.SymbolImplicit._
-import decaf.annot.TypeImplicit._
-import decaf.annot._
+import decaf.frontend.annot.ScopeImplicit._
+import decaf.frontend.annot.SymbolImplicit._
+import decaf.frontend.annot.TypeImplicit._
+import decaf.frontend.annot._
 import decaf.driver.{Config, Phase}
-import decaf.error._
+import decaf.driver.error._
 import decaf.lowlevel.log.IndentPrinter
-import decaf.parsing.Pos
+import decaf.frontend.parsing.Pos
 import decaf.printing.PrettyScope
-import decaf.tree.SyntaxTree.NoAnnot
-import decaf.tree.TreeNode._
-import decaf.tree.TypedTree._
-import decaf.tree.{SyntaxTree => Syn}
+import decaf.frontend.tree.SyntaxTree.NoAnnot
+import decaf.frontend.tree.TreeNode._
+import decaf.frontend.tree.TypedTree._
+import decaf.frontend.tree.{SyntaxTree => Syn}
 
 /**
   * Type check. This phase inputs a SyntaxTree and outputs a TypedTree. In detail, we split this in two passes --

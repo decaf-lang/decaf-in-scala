@@ -1,15 +1,15 @@
-package decaf.tac
+package decaf.frontend.tac
 
 
-import decaf.annot.SymbolImplicit._
-import decaf.annot.TypeImplicit._
-import decaf.annot.{BoolType, IntType, LocalVarSymbol, StringType}
+import decaf.frontend.annot.SymbolImplicit._
+import decaf.frontend.annot.TypeImplicit._
+import decaf.frontend.annot.{BoolType, IntType, LocalVarSymbol, StringType}
 import decaf.lowlevel.StringUtils
 import decaf.lowlevel.instr.Temp
 import decaf.lowlevel.label.Label
 import decaf.lowlevel.tac.{FuncVisitor, Intrinsic, RuntimeError, TacInstr}
-import decaf.tree.TreeNode
-import decaf.tree.TypedTree._
+import decaf.frontend.tree.TreeNode
+import decaf.frontend.tree.TypedTree._
 import decaf.util.Conversions._
 
 import scala.collection.mutable

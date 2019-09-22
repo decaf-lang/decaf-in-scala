@@ -1,8 +1,8 @@
-package decaf.tree
+package decaf.frontend.tree
 
-import decaf.annot.{Annot, Annotated}
-import decaf.parsing.{NoPos, Pos}
-import decaf.tree.TreeNode._
+import decaf.frontend.annot.{Annot, Annotated}
+import decaf.frontend.parsing.{NoPos, Pos}
+import decaf.frontend.tree.TreeNode._
 
 /**
   * A template trait for expression a tree in high-level -- details of method bodies are not stated in this template,

@@ -1,7 +1,7 @@
-package decaf.error
+package decaf.driver.error
 
-import decaf.annot.{ClassType, Type}
-import decaf.parsing.{NoPos, Pos}
+import decaf.frontend.annot.{ClassType, Type}
+import decaf.frontend.parsing.{NoPos, Pos}
 
 abstract class Error(val msg: String, val pos: Pos = NoPos) extends Exception {
   override def toString: String = pos match {

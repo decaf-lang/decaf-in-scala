@@ -1,7 +1,7 @@
-package decaf.parsing
+package decaf.frontend.parsing
 
-import decaf.error.UnrecogCharError
-import decaf.parsing.antlr.DecafLexer
+import decaf.driver.error.UnrecogCharError
+import decaf.frontend.parsing.antlr.DecafLexer
 import org.antlr.v4.runtime.{CharStream, Token}
 
 /**

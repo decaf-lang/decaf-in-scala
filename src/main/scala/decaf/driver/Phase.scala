@@ -2,7 +2,7 @@ package decaf.driver
 
 import java.io.PrintStream
 
-import decaf.error.ErrorIssuer
+import decaf.driver.error.ErrorIssuer
 
 abstract class Phase[In, Out](val name: String) extends ErrorIssuer {
   def transform(input: In): Out

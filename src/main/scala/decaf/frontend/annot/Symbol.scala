@@ -1,12 +1,12 @@
-package decaf.annot
+package decaf.frontend.annot
 
 import java.util.TreeSet
 
 import decaf.lowlevel.tac.ClassInfo
-import decaf.parsing.Pos
-import decaf.tree.SyntaxTree
-import decaf.tree.SyntaxTree._
-import decaf.tree.TreeNode.Var
+import decaf.frontend.parsing.Pos
+import decaf.frontend.tree.SyntaxTree
+import decaf.frontend.tree.SyntaxTree._
+import decaf.frontend.tree.TreeNode.Var
 import decaf.util.Conversions._
 
 /**

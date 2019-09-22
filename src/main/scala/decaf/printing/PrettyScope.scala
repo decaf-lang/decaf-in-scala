@@ -1,6 +1,6 @@
 package decaf.printing
 
-import decaf.annot._
+import decaf.frontend.annot._
 import decaf.lowlevel.log.IndentPrinter
 
 /**

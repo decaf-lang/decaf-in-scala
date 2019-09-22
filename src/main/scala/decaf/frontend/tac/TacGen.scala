@@ -1,11 +1,11 @@
-package decaf.tac
+package decaf.frontend.tac
 
 import java.io.PrintWriter
 
-import decaf.annot.SymbolImplicit._
+import decaf.frontend.annot.SymbolImplicit._
 import decaf.driver.{Config, Phase}
 import decaf.lowlevel.tac.{ProgramWriter, Simulator, TacProg}
-import decaf.tree.TypedTree._
+import decaf.frontend.tree.TypedTree._
 import decaf.util.Conversions._
 
 /**

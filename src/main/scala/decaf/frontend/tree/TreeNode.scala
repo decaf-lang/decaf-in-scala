@@ -1,6 +1,6 @@
-package decaf.tree
+package decaf.frontend.tree
 
-import decaf.parsing.{NoPos, Pos, Positional}
+import decaf.frontend.parsing.{NoPos, Pos, Positional}
 
 object TreeNode {
 

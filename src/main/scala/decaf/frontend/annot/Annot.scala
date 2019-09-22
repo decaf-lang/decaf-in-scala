@@ -1,4 +1,4 @@
-package decaf.annot
+package decaf.frontend.annot
 
 /**
   * An "annotation" is something that is labeled on a tree node.

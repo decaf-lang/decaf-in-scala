@@ -1,4 +1,4 @@
-package decaf.parsing
+package decaf.frontend.parsing
 
 /**
   * A position, say a line number and a column number in a source file.

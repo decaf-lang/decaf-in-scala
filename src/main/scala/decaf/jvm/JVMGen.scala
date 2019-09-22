@@ -1,12 +1,12 @@
 package decaf.jvm
 
-import decaf.annot.SymbolImplicit._
-import decaf.annot.TypeImplicit._
-import decaf.annot.{ArrayType, JNativeType, LocalVarSymbol}
+import decaf.frontend.annot.SymbolImplicit._
+import decaf.frontend.annot.TypeImplicit._
+import decaf.frontend.annot.{ArrayType, JNativeType, LocalVarSymbol}
 import decaf.driver.{Config, Phase}
-import decaf.tree.TreeNode.{ArithOp, EqOrCmpOp}
-import decaf.tree.TypedTree._
-import decaf.tree.{TreeNode, TypedTree}
+import decaf.frontend.tree.TreeNode.{ArithOp, EqOrCmpOp}
+import decaf.frontend.tree.TypedTree._
+import decaf.frontend.tree.{TreeNode, TypedTree}
 import org.objectweb.asm.{ClassWriter, Label, MethodVisitor, Opcodes}
 
 import scala.collection.mutable

@@ -1,8 +1,8 @@
 package decaf.printing
 
-import decaf.annot.Annotated
+import decaf.frontend.annot.Annotated
 import decaf.lowlevel.log.IndentPrinter
-import decaf.tree.TreeNode.Node
+import decaf.frontend.tree.TreeNode.Node
 
 class PrettyTree(printer: IndentPrinter) extends PrettyPrinter[Node with Annotated[_]](printer) {
 

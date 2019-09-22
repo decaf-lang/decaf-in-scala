@@ -1,4 +1,4 @@
-package decaf.annot
+package decaf.frontend.annot
 
 /**
   * Types.

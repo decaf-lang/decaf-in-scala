@@ -1,4 +1,4 @@
-package decaf.error
+package decaf.driver.error
 
 import java.io.PrintStream
 

@@ -1,13 +1,13 @@
-package decaf.typecheck
+package decaf.frontend.typecheck
 
-import decaf.annot.SymbolImplicit._
-import decaf.annot.TypeImplicit._
-import decaf.annot._
+import decaf.frontend.annot.SymbolImplicit._
+import decaf.frontend.annot.TypeImplicit._
+import decaf.frontend.annot._
 import decaf.driver.Phase
-import decaf.error._
-import decaf.tree.SyntaxTree._
-import decaf.tree.TreeNode._
-import decaf.tree.{TypedTree => Typed}
+import decaf.driver.error._
+import decaf.frontend.tree.SyntaxTree._
+import decaf.frontend.tree.TreeNode._
+import decaf.frontend.tree.{TypedTree => Typed}
 
 import scala.collection.mutable
 

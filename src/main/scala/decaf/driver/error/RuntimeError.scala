@@ -1,4 +1,4 @@
-package decaf.error
+package decaf.driver.error
 
 object RuntimeError {
   final val ARRAY_INDEX_OUT_OF_BOUND = "Decaf runtime error: Array subscript out of bounds\n"

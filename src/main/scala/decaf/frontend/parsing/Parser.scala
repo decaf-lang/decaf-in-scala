@@ -1,16 +1,16 @@
-package decaf.parsing
+package decaf.frontend.parsing
 
 import java.io.InputStream
 
 import decaf.driver.{Config, Phase}
-import decaf.error._
+import decaf.driver.error._
 import decaf.lowlevel.log.IndentPrinter
-import decaf.parsing.Util._
-import decaf.parsing.antlr.{DecafParser, DecafParserBaseVisitor}
+import decaf.frontend.parsing.Util._
+import decaf.frontend.parsing.antlr.{DecafParser, DecafParserBaseVisitor}
 import decaf.printing.PrettyTree
-import decaf.tree.SyntaxTree._
-import decaf.tree.TreeNode
-import decaf.tree.TreeNode.{Id, Modifiers}
+import decaf.frontend.tree.SyntaxTree._
+import decaf.frontend.tree.TreeNode
+import decaf.frontend.tree.TreeNode.{Id, Modifiers}
 import org.antlr.v4.runtime._
 
 import scala.jdk.CollectionConverters._
@@ -28,7 +28,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
     */
   override def transform(in: InputStream): Tree = {
     val stream = CharStreams.fromStream(in)
-    val lexer = new decaf.parsing.Lexer(stream)
+    val lexer = new decaf.frontend.parsing.Lexer(stream)
     val tokens = new CommonTokenStream(lexer)
     val parser = new DecafParser(tokens)
     parser.addErrorListener(ErrorListener)

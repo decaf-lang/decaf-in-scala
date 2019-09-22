@@ -1,10 +1,10 @@
-package decaf.tree
+package decaf.frontend.tree
 
-import decaf.annot._
+import decaf.frontend.annot._
 
 /**
   * Compared to the NamedTree, a TypedTree is fully resolved and:
-  * - Every type literal is labeled with the actual type (i.e. of type `decaf.annot.Type`)
+  * - Every type literal is labeled with the actual type (i.e. of type `decaf.frontend.annot.Type`)
   * - Every expression is labeled with its type
   * - Every statement is type checked
   * - Every reference (e.g. refers a class, method, local variable) is linked to a symbol of the element that it points

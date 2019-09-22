@@ -4,10 +4,10 @@ import java.io.InputStream
 
 import decaf.jvm.{JVMClass, JVMGen}
 import decaf.lowlevel.tac.TacProg
-import decaf.parsing.Parser
-import decaf.tac.TacGen
-import decaf.tree.TypedTree
-import decaf.typecheck.{Namer, Typer}
+import decaf.frontend.parsing.Parser
+import decaf.frontend.tac.TacGen
+import decaf.frontend.tree.TypedTree
+import decaf.frontend.typecheck.{Namer, Typer}
 
 class Tasks(implicit val opt: Config) {
 

@@ -1,10 +1,10 @@
-package decaf.typecheck
+package decaf.frontend.typecheck
 
-import decaf.annot.TypeImplicit._
-import decaf.annot._
-import decaf.error._
-import decaf.tree.SyntaxTree._
-import decaf.tree.{TypedTree => Typed}
+import decaf.frontend.annot.TypeImplicit._
+import decaf.frontend.annot._
+import decaf.driver.error._
+import decaf.frontend.tree.SyntaxTree._
+import decaf.frontend.tree.{TypedTree => Typed}
 
 trait Util extends ErrorIssuer {
   def typeTypeLit(typeLit: TypeLit)(implicit ctx: ScopeContext): Typed.TypeLit = {

@@ -1,7 +1,7 @@
-package decaf.tree
+package decaf.frontend.tree
 
-import decaf.annot.Annot
-import decaf.tree.TreeNode.Id
+import decaf.frontend.annot.Annot
+import decaf.frontend.tree.TreeNode.Id
 
 /**
   * A syntax tree, with no annotations.

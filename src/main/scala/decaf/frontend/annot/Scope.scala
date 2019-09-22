@@ -1,6 +1,6 @@
-package decaf.annot
+package decaf.frontend.annot
 
-import decaf.parsing.Pos
+import decaf.frontend.parsing.Pos
 
 import scala.collection.mutable
 

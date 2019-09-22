@@ -22,7 +22,7 @@ libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.9"
 
 enablePlugins(Antlr4Plugin)
 
-antlr4PackageName in Antlr4 := Some("decaf.parsing.antlr")
+antlr4PackageName in Antlr4 := Some("decaf.frontend.parsing.antlr")
 
 antlr4GenListener in Antlr4 := false // default: true
 

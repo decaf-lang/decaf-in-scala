@@ -1,7 +1,7 @@
 package decaf.jvm
 
-import decaf.annot._
-import decaf.tree.TreeNode
+import decaf.frontend.annot._
+import decaf.frontend.tree.TreeNode
 import org.objectweb.asm.{Label, MethodVisitor, Opcodes, Type => ASMType}
 
 trait Util {
