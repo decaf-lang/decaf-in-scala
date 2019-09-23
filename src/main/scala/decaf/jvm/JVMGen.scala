@@ -7,6 +7,7 @@ import decaf.driver.{Config, Phase}
 import decaf.frontend.tree.TreeNode.{ArithOp, EqOrCmpOp}
 import decaf.frontend.tree.TypedTree._
 import decaf.frontend.tree.{TreeNode, TypedTree}
+import decaf.lowlevel.StringUtils
 import org.objectweb.asm.{ClassWriter, Label, MethodVisitor, Opcodes}
 
 import scala.collection.mutable
@@ -178,7 +179,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
   def emitExpr(expr: Expr)(implicit mv: MethodVisitor, ctx: Context): Unit = expr match {
     case IntLit(v) => mv.visitLdcInsn(v)
     case BoolLit(v) => mv.visitLdcInsn(v)
-    case StringLit(v) => mv.visitLdcInsn(v)
+    case StringLit(str) => mv.visitLdcInsn(StringUtils.unquote(str))
     case NullLit() => mv.visitInsn(Opcodes.ACONST_NULL)
 
     // Prebuilt functions
