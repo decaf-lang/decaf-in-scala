@@ -19,7 +19,7 @@ object Config {
 class Config(val source: Path = Config.PWD,
              val output: OutputStream = Config.STDOUT,
              val dstDir: Path = Config.PWD,
-             val target: Config.Target.Value = Config.Target.PA3,
+             val target: Config.Target.Value = Config.Target.PA5,
              val logColor: Boolean = false,
              val logLevel: Level = Level.OFF,
              val logFile: Path = null) {

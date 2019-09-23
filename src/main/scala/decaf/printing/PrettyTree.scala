@@ -17,7 +17,7 @@ class PrettyTree(printer: IndentPrinter) extends PrettyPrinter[Node with Annotat
     case None => printer.println("<none>")
     case es: List[_] =>
       printer.println("List")
-      withIndent {
+      indent {
         if (es.isEmpty) printer.println("<empty>")
         else es.foreach(prettyElement)
       }
@@ -29,7 +29,7 @@ class PrettyTree(printer: IndentPrinter) extends PrettyPrinter[Node with Annotat
     val posStr = if (showPos) s" @ (${ node.pos.line },${ node.pos.column })"
 
     printer.println(node.productPrefix + annotStr + posStr)
-    withIndent {
+    indent {
       node.productIterator.foreach(prettyElement)
     }
   }

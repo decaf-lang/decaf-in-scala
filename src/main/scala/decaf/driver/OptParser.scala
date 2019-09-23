@@ -4,6 +4,7 @@ import java.io._
 import java.util.logging.Level
 
 import decaf.driver.Config.Target
+import decaf.lowlevel.log.Log
 import scopt.{OptionParser, Read}
 
 object OptParser extends OptionParser[Config]("decaf") {
@@ -41,7 +42,7 @@ object OptParser extends OptionParser[Config]("decaf") {
 
   opt[Config.Target.Value]('t', "target")
     .valueName("target")
-    .text("target/task: PA1, PA2, PA3, PA3-JVM, PA4, or PA5")
+    .text("target/task: PA1, PA2, PA3, PA3-JVM, PA4, or PA5 (default)")
     .action { case (t, config) => config.copy(target = t) }
 
   opt[Unit]("log-color")
@@ -62,14 +63,16 @@ object OptParser extends OptionParser[Config]("decaf") {
     .text("prints this usage text\n")
 
   checkConfig { config =>
-    // TODO: setup logger
+    if (config.logLevel.intValue < Level.OFF.intValue) { // enable logging
+      if (config.logFile == null) Log.setup(config.logLevel, config.logColor)
+      else Log.setup(config.logLevel, config.logColor, config.logFile.path)
+    }
     Right()
   }
 
-  implicit def ReadLogLevel: Read[Level] = Read.reads(Level.parse)
+  implicit private def ReadLogLevel: Read[Level] = Read.reads { s => Level.parse(s.toUpperCase) }
 
-  implicit def ReadTarget: Read[Target.Value] = Read.reads {
-    case "PA3-JVM" => Target.PA3_JVM
-    case other => Target.withName(other)
+  implicit private def ReadTarget: Read[Target.Value] = Read.reads { s =>
+    Target.withName(s.toUpperCase.replace("-", "_"))
   }
 }

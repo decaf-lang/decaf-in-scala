@@ -15,6 +15,8 @@ object Launcher {
       case Config.Target.PA2 => tasks.typeCheck
       case Config.Target.PA3 => tasks.tac
       case Config.Target.PA3_JVM => tasks.jvm
+      case Config.Target.PA4 => tasks.optimize
+      case Config.Target.PA5 => tasks.mips
     }
     task.run(config.sourceStream)
   }

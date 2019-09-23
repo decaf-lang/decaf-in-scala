@@ -9,4 +9,9 @@ object Conversions {
     case Some(value) => java.util.Optional.of(value)
     case None => java.util.Optional.empty()
   }
+
+  implicit def JavaOptionalToScalaOption[T](optional: java.util.Optional[T]): Option[T] =
+    if (optional.isEmpty) None else Some(optional.get)
+
+  implicit def JavaListToScalaList[T](list: java.util.List[T]): List[T] = list.asScala.toList
 }

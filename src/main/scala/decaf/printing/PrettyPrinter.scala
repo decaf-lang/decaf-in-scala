@@ -10,7 +10,7 @@ abstract class PrettyPrinter[T](printer: IndentPrinter) {
     printer.flush()
   }
 
-  def withIndent(action: => Unit): Unit = {
+  def indent(action: => Unit): Unit = {
     printer.incIndent()
     action
     printer.decIndent()
