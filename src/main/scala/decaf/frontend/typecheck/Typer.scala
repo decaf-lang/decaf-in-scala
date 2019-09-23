@@ -85,7 +85,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
     * @param tree   the typed tree
     * @param config the compiler configuration
     */
-  override def post(tree: Tree)(implicit config: Config): Unit = {
+  override def onSucceed(tree: Tree)(implicit config: Config): Unit = {
     if (config.target == Config.Target.PA2) {
       val printer = new PrettyScope(new IndentPrinter(config.output))
       printer.pretty(tree.scope)

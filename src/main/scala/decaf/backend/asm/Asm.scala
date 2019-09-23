@@ -42,7 +42,7 @@ class Asm(val emitter: AsmEmitter, val regAlloc: RegAlloc) extends Phase[TacProg
     emitter.emitEnd()
   }
 
-  override def post(code: String)(implicit config: Config): Unit = {
+  override def onSucceed(code: String)(implicit config: Config): Unit = {
     if (config.target.equals(Config.Target.PA5)) {
       val path = config.dstDir / config.sourceBaseName + ".s"
       val printer = new PrintWriter(path)

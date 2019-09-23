@@ -14,7 +14,7 @@ class Optimizer extends Phase[TacProg, TacProg]("optimizer") {
 
   override def transform(input: TacProg): TacProg = input
 
-  override def post(program: TacProg)(implicit config: Config): Unit = {
+  override def onSucceed(program: TacProg)(implicit config: Config): Unit = {
     if (config.target.equals(Config.Target.PA4)) { // First dump the tac program to file,
       val path = config.dstDir / config.sourceBaseName + ".tac"
       val printer = new PrintWriter(path)
