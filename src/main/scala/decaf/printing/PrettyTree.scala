@@ -12,7 +12,7 @@ class PrettyTree(printer: IndentPrinter) extends PrettyPrinter[Node with Annotat
   var showAnnot = false
 
   def prettyElement(element: Any): Unit = element match {
-    case null => printer.println("<null>")
+    case null => printer.println("<null> TODO: bug!")
     case e: Node with Annotated[_] => pretty(e)
     case Some(e) => prettyElement(e)
     case None => printer.println("<none>")
@@ -25,7 +25,10 @@ class PrettyTree(printer: IndentPrinter) extends PrettyPrinter[Node with Annotat
           es.foreach(prettyElement)
         }
       }
-    case e => printer.println(e.toString)
+    case e => e.toString match {
+      case "" => // print nothing if the string is empty
+      case s => printer.println(s)
+    }
   }
 
   override def pretty(node: Node with Annotated[_]): Unit = {
