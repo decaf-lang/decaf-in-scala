@@ -2,17 +2,23 @@ package decaf.frontend.tac
 
 import java.io.PrintWriter
 
-import decaf.frontend.annot.SymbolImplicit._
 import decaf.driver.{Config, Phase}
-import decaf.lowlevel.tac.{ProgramWriter, Simulator, TacProg}
+import decaf.frontend.annot.SymbolImplicit._
 import decaf.frontend.tree.TypedTree._
+import decaf.lowlevel.tac.{ProgramWriter, Simulator, TacProg}
 import decaf.util.Conversions._
 
 /**
-  * The tacgen phase: translate an abstract syntax tree to TAC IR.
+  * The tacgen phase: translate a typed abstract syntax tree to TAC IR.
   */
-class TacGen extends Phase[Tree, TacProg]("tacgen") with TacEmitter {
+class TacGen(implicit config: Config) extends Phase[Tree, TacProg]("tacgen", config) with TacEmitter {
 
+  /**
+    * Transformer entry.
+    *
+    * @param tree a typed abstract syntax tree
+    * @return TAC program
+    */
   override def transform(tree: Tree): TacProg = {
     // Create class info.
     val info = tree.classes.map(_.symbol.getInfo)
@@ -46,7 +52,12 @@ class TacGen extends Phase[Tree, TacProg]("tacgen") with TacEmitter {
     pw.visitEnd()
   }
 
-  override def onSucceed(program: TacProg)(implicit config: Config): Unit = {
+  /**
+    * After generating TAC program, dump it and start the simulator if necessary.
+    *
+    * @param program TAC program
+    */
+  override def onSucceed(program: TacProg): Unit = {
     if (config.target.equals(Config.Target.PA3)) { // First dump the tac program to file,
       val path = config.dstDir / config.sourceBaseName + ".tac"
       val printer = new PrintWriter(path)

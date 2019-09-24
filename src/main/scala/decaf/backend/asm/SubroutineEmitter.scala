@@ -11,6 +11,7 @@ import decaf.lowlevel.label.Label
   * @param info    basic info of this subroutine
   */
 abstract class SubroutineEmitter protected(val emitter: AsmEmitter, var info: SubroutineInfo) {
+
   /**
     * Append an assembly instruction that stores the value of a register to stack.
     *

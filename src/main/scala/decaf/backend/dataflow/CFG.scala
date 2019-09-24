@@ -20,7 +20,6 @@ import scala.collection.mutable
 class CFG[I <: PseudoInstr](nodes: List[BasicBlock[I]], edges: List[(Int, Int)])
   extends Iterable[BasicBlock[I]] {
 
-
   /**
     * Get basic block by id.
     *
@@ -92,6 +91,7 @@ class CFG[I <: PseudoInstr](nodes: List[BasicBlock[I]], edges: List[(Int, Int)])
 }
 
 object CFG {
+
   /**
     * Build a control flow graph from a sequence of instructions (in one function/subroutine).
     *
@@ -102,8 +102,9 @@ object CFG {
 
     @scala.annotation.tailrec
     def build(seq: List[I], label: Option[Label], bbs: List[BasicBlock[I]]): List[BasicBlock[I]] = {
-      if (seq.isEmpty) bbs
-      else {
+      if (seq.isEmpty) {
+        bbs
+      } else {
         val (sequential, remainder) = seq.span(_.isSequential)
         assert(remainder.nonEmpty)
         val end :: rest = remainder

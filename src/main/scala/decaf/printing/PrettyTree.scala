@@ -1,9 +1,10 @@
 package decaf.printing
 
 import decaf.frontend.annot.Annotated
-import decaf.lowlevel.log.IndentPrinter
 import decaf.frontend.tree.TreeNode.Node
+import decaf.lowlevel.log.IndentPrinter
 
+/** Pretty print a tree. Output of PA1. */
 class PrettyTree(printer: IndentPrinter) extends PrettyPrinter[Node with Annotated[_]](printer) {
 
   var showPos = true
@@ -18,8 +19,11 @@ class PrettyTree(printer: IndentPrinter) extends PrettyPrinter[Node with Annotat
     case es: List[_] =>
       printer.println("List")
       indent {
-        if (es.isEmpty) printer.println("<empty>")
-        else es.foreach(prettyElement)
+        if (es.isEmpty) {
+          printer.println("<empty>")
+        } else {
+          es.foreach(prettyElement)
+        }
       }
     case e => printer.println(e.toString)
   }

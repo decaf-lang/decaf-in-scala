@@ -4,7 +4,6 @@ import decaf.lowlevel.AsmCodePrinter
 import decaf.lowlevel.instr.{PseudoInstr, Reg}
 import decaf.lowlevel.tac.{TacFunc, VTable}
 
-
 /**
   * Emit assembly code.
   *
@@ -13,6 +12,7 @@ import decaf.lowlevel.tac.{TacFunc, VTable}
   * @param callerSaveRegs  platform-specific registers that need be saved by caller.
   */
 abstract class AsmEmitter(val platformName: String, val allocatableRegs: Array[Reg], val callerSaveRegs: Array[Reg]) {
+
   /**
     * Emit assembly code for a virtual table.
     *

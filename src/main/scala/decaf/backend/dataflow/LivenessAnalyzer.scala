@@ -5,6 +5,7 @@ import decaf.lowlevel.instr.{PseudoInstr, Temp}
 import scala.collection.mutable
 
 class LivenessAnalyzer[I <: PseudoInstr] extends Function[CFG[I], Unit] {
+
   override def apply(graph: CFG[I]): Unit = {
     for (bb <- graph) {
       computeDefAndLiveUseFor(bb)
@@ -54,7 +55,9 @@ class LivenessAnalyzer[I <: PseudoInstr] extends Function[CFG[I], Unit] {
       loc.instr.getWritten.forEach(bb.`def`.add)
       loc.instr.getRead.forEach { t =>
         if (!bb.`def`.contains(t)) // used before being assigned to a value
+        {
           bb.liveUse.add(t)
+        }
       }
     }
   }

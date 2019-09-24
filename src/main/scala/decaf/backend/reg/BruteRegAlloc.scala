@@ -7,7 +7,6 @@ import decaf.lowlevel.instr.{PseudoInstr, Reg, Temp}
 import scala.collection.mutable
 import scala.util.Random
 
-
 /**
   * Brute force greedy register allocation algorithm.
   * <p>
@@ -26,6 +25,7 @@ final class BruteRegAlloc(emitter: AsmEmitter) extends RegAlloc(emitter) {
   }
 
   private class Context(val subEmitter: SubroutineEmitter) {
+
     val regOf = new mutable.TreeMap[Temp, Reg]
     val tempOf = new mutable.TreeMap[Reg, Temp]
     val occupied = new mutable.TreeSet[Reg]
@@ -101,9 +101,9 @@ final class BruteRegAlloc(emitter: AsmEmitter) extends RegAlloc(emitter) {
     for {
       temp <- bb.liveOut
       if ctx.regOf.contains(temp)
-    } ctx.subEmitter.emitStoreToStack(ctx.regOf(temp), temp)
-
-    // Handle the last instruction, if it is a branch/return block.
+    } {
+      ctx.subEmitter.emitStoreToStack(ctx.regOf(temp), temp)
+    } // Handle the last instruction, if it is a branch/return block.
     bb match {
       case _: ContinuousBasicBlock[PseudoInstr] => // skip
       case bb: EndByJumpBasicBlock[PseudoInstr] => allocForLoc(bb.jump)

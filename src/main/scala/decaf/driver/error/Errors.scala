@@ -3,7 +3,14 @@ package decaf.driver.error
 import decaf.frontend.annot.{ClassType, Type}
 import decaf.frontend.parsing.{NoPos, Pos}
 
+/**
+  * Decaf error.
+  *
+  * @param msg error message
+  * @param pos error position
+  */
 abstract class Error(val msg: String, val pos: Pos = NoPos) extends Exception {
+
   override def toString: String = pos match {
     case NoPos => s"*** Error: $msg"
     case _ => s"*** Error at (${ pos.line },${ pos.column }): $msg"
@@ -29,7 +36,7 @@ class IntTooLargeError(literal: String, pos: Pos)
   *
   * Decaf only support the following escape characters: `\n`, `\t`, `\r`, `\"`, and `\\`. Others like `\a` are illegal.
   *
-  * Example:
+  * @example
   * {{{
   * illegal escape character:
   * str = "\a";

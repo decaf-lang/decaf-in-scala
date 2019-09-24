@@ -12,6 +12,7 @@ import scala.collection.mutable
   * @tparam I type of the instructions stored in the block
   */
 trait BasicBlock[I <: PseudoInstr] extends Iterable[Loc[I]] {
+
   /**
     * Id, MUST be unique in one control flow graph.
     */
@@ -70,6 +71,7 @@ trait BasicBlock[I <: PseudoInstr] extends Iterable[Loc[I]] {
   */
 case class ContinuousBasicBlock[I <: PseudoInstr](id: Int, label: Option[Label], instrSeq: List[Loc[I]])
   extends BasicBlock[I] {
+
   override def iterator: Iterator[Loc[I]] = instrSeq.iterator
 
   override def seqIterator: Iterator[Loc[I]] = instrSeq.iterator
@@ -87,6 +89,7 @@ case class ContinuousBasicBlock[I <: PseudoInstr](id: Int, label: Option[Label],
   */
 case class EndByJumpBasicBlock[I <: PseudoInstr](id: Int, label: Option[Label], sequential: List[Loc[I]],
                                                  jump: Loc[I]) extends BasicBlock[I] {
+
   override def iterator: Iterator[Loc[I]] = (sequential :+ jump).iterator
 
   override def seqIterator: Iterator[Loc[I]] = sequential.iterator
@@ -107,6 +110,7 @@ case class EndByJumpBasicBlock[I <: PseudoInstr](id: Int, label: Option[Label], 
   */
 case class EndByCondJumpBasicBlock[I <: PseudoInstr](id: Int, label: Option[Label], sequential: List[Loc[I]],
                                                      jump: Loc[I]) extends BasicBlock[I] {
+
   override def iterator: Iterator[Loc[I]] = (sequential :+ jump).iterator
 
   override def seqIterator: Iterator[Loc[I]] = sequential.iterator
@@ -126,6 +130,7 @@ case class EndByCondJumpBasicBlock[I <: PseudoInstr](id: Int, label: Option[Labe
   */
 case class EndByReturnBasicBlock[I <: PseudoInstr](id: Int, label: Option[Label], sequential: List[Loc[I]],
                                                    ret: Loc[I]) extends BasicBlock[I] {
+
   override def iterator: Iterator[Loc[I]] = (sequential :+ ret).iterator
 
   override def seqIterator: Iterator[Loc[I]] = sequential.iterator

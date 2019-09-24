@@ -1,10 +1,10 @@
 package decaf.frontend.typecheck
 
+import decaf.driver.error._
+import decaf.driver.{Config, Phase}
 import decaf.frontend.annot.SymbolImplicit._
 import decaf.frontend.annot.TypeImplicit._
 import decaf.frontend.annot._
-import decaf.driver.Phase
-import decaf.driver.error._
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.{TypedTree => Typed}
@@ -14,14 +14,62 @@ import scala.collection.mutable
 /**
   * The namer phase: resolve all symbols defined in the abstract syntax tree and store them in symbol tables (i.e.
   * scopes).
+  *
+  * ==Overview==
+  * The entire type checking pass is split into two phases -- [[Namer]] and [[Typer]].
+  *
+  * Why two? Note that all defined classes are visible to every other class, which means we can access another
+  * class's members, and of course the type that itself represents, e.g.
+  * {{{
+  * class A {
+  *     class B foo; // access B
+  *     void bar() {
+  *         foo.baz(); // access baz of B
+  *     }
+  * }
+  * class B {
+  *     void baz();
+  * }
+  * }}}
+  *
+  * Apparently, classes cannot be resolved in the order they presented in the syntax tree: `A` refers to `B`,
+  * whose definition goes '''later'''. To tackle this issue, one possible way is to first scan all classes ''roughly''
+  * and then step into details of every method body -- because at that time, signatures of class members are known.
+  *
+  * In the [[Namer]] phase, we just scan all class members, while ignoring any statement/expressions which doesn't
+  * define a new symbol (a variable), because that's enough for us to know what a class looks like.
+  * After this phase, a '''not fully-typed''' tree is returned. In this tree:
+  *
+  *   - class and members are associated with their symbols (also the scopes)
+  *   - methods are associated with their formal scopes (which contains symbols of parameters)
+  *   - blocks are associated with their local scopes (which contains symbols of local variables)
+  *
+  * However, no typing checking has yet been done for any statement or expression.
+  *
+  * ===Implicit Contexts===
+  * As you can see, implicits are widely-used in this project. I hope all of them are appropriate and not abused.
+  * In particular, contexts are quite important and common in a type checking algorithm. However, since many times
+  * contexts are passing to other functions without any change, specifying them are implicit parameters makes our
+  * life easier -- we only need to explicitly pass them whenever they are updated, in very few situations!
+  *
+  * @see [[Typer]]
+  * @see [[decaf.frontend.annot.Scope]]
+  * @see [[decaf.frontend.annot.Symbol]]
   */
-class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
+class Namer(implicit config: Config) extends Phase[Tree, Typed.Tree]("namer", config) with Util {
 
   class Context {
+
     val global: GlobalScope = new GlobalScope
     val classes: mutable.Map[String, ClassDef] = new mutable.TreeMap
   }
 
+  /**
+    * Transformer entry.
+    *
+    * @param tree an (untyped) abstract syntax tree
+    * @return a typed tree with untyped holes
+    */
   override def transform(tree: Tree): Typed.Tree = {
     implicit val ctx = new Context
 
@@ -195,7 +243,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
                 val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
                 val funType = FunType(typedParams.map(_.typeLit.typ), retType)
                 if (funType <= suspect.typ) { // override success
-                  val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass, Some(suspect))
+                  val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass)
                   ctx.declare(symbol)
                   val block = resolveBlock(body)(formalCtx)
                   Some(Typed.MethodDef(mod, id, ret, typedParams, block)(symbol))
@@ -208,7 +256,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
         }
       case None =>
         field match {
-          case v @ VarDef(typeLit, id, init) =>
+          case v @ VarDef(typeLit, id) =>
             val lit = typeTypeLit(typeLit)
             lit.typ match {
               case NoType => None
@@ -218,7 +266,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
               case t =>
                 val symbol = new MemberVarSymbol(v, t, ctx.currentClass)
                 ctx.declare(symbol)
-                Some(Typed.VarDef(lit, id, init)(symbol))
+                Some(Typed.VarDef(lit, id)(symbol))
             }
           case m @ MethodDef(mod, id, returnType, params, body) =>
             val rt = typeTypeLit(returnType)
@@ -305,7 +353,7 @@ class Namer extends Phase[Tree, Typed.Tree]("namer") with Util {
             None
           case VoidType => issue(new BadVarTypeError(v.name, v.pos)); None
           case t =>
-            val symbol = new LocalVarSymbol(v, t, isParam)
+            val symbol = new LocalVarSymbol(v, t)
             ctx.declare(symbol)
             Some(Typed.LocalVarDef(typedTypeLit, v.id, v.init, v.assignPos)(symbol))
         }

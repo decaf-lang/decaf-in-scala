@@ -10,7 +10,6 @@ import decaf.util.Conversions._
 
 import scala.collection.mutable
 
-
 /**
   * Emit MIPS assembly code.
   */
@@ -24,7 +23,9 @@ final class MipsAsmEmitter extends AsmEmitter("mips", Mips.allocatableRegs, Mips
       val parent = vtbl.parent.get
       printer.println(".word %s    # parent: %s", parent.label, parent.className)
     }
-    else printer.println(".word 0    # parent: none")
+    else {
+      printer.println(".word 0    # parent: none")
+    }
     val index = pool.add(vtbl.className)
     printer.println(".word %s%d    # class name", STR_PREFIX, index)
     vtbl.getItems.forEach { entry =>
@@ -149,6 +150,7 @@ final class MipsAsmEmitter extends AsmEmitter("mips", Mips.allocatableRegs, Mips
   }
 
   private class MipsInstrSelector private[mips](var entry: Label) extends TacInstr.Visitor {
+
     private[mips] val seq = new mutable.ArrayBuffer[PseudoInstr]
     private[mips] var maxArgs = 0
     private var argCount = 0
@@ -216,8 +218,11 @@ final class MipsAsmEmitter extends AsmEmitter("mips", Mips.allocatableRegs, Mips
     }
 
     override def visitParm(instr: TacInstr.Parm): Unit = {
-      if (argCount < 4) seq += new Mips.Move(Mips.argRegs(argCount), instr.value)
-      else seq += new Mips.StoreWord(instr.value, Mips.SP, argCount * 4)
+      if (argCount < 4) {
+        seq += new Mips.Move(Mips.argRegs(argCount), instr.value)
+      } else {
+        seq += new Mips.StoreWord(instr.value, Mips.SP, argCount * 4)
+      }
       argCount += 1
     }
 

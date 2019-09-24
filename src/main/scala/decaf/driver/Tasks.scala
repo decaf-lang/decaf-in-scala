@@ -13,23 +13,12 @@ import decaf.frontend.typecheck.{Namer, Typer}
 import decaf.jvm.{JVMClass, JVMGen}
 import decaf.lowlevel.tac.TacProg
 
-class Tasks(implicit val opt: Config) {
+/**
+  * Supported tasks of Decaf compiler.
+  */
+class Tasks(implicit opt: Config) {
 
-  trait Task[T, U] {
-    def run(in: T): Option[U]
-
-    def |>[V](next: Phase[U, V]): Task[T, V] = TCons(this, next)
-  }
-
-  case class TNil[T, U](phase: Phase[T, U]) extends Task[T, U] {
-    override def run(in: T): Option[U] = phase(in)
-  }
-
-  case class TCons[T, U, V](first: Task[T, U], last: Phase[U, V]) extends Task[T, V] {
-    override def run(in: T): Option[V] = first.run(in).flatMap(last.apply)
-  }
-
-  val parse = TNil(new Parser)
+  val parse = new Parser
 
   val typeCheck: Task[InputStream, TypedTree.Tree] = parse |> new Namer |> new Typer
 

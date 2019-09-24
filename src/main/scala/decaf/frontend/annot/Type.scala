@@ -4,12 +4,21 @@ package decaf.frontend.annot
   * Types.
   *
   * Decaf has a very simple type system, consisting of:
-  * - basic types: int, bool, and string
-  * - array types
-  * - class types
-  * - function types (cannot be expressed in programs, but we use them to type check function calls)
+  *
+  *   - basic types: int, bool, and string
+  *   - array types
+  *   - class types
+  *   - function types (cannot be directly expressed in programs, but we use them to type check function calls)
+  *
+  * Note the error type [[NoType]] is just a convenient placeholder for type checker and shall never be abused!
+  *
+  * @see [[BaseType]]
+  * @see [[ClassType]]
+  * @see [[ArrayType]]
+  * @see [[FunType]]
   */
 sealed trait Type extends Annot {
+
   /**
     * Check if `this` is a subtype of `that`, denoted by `this <= that`.
     * Rules:
@@ -24,8 +33,10 @@ sealed trait Type extends Annot {
     */
   def <=(that: Type): Boolean
 
+  /** Check if two types are equivalent. */
   def ===(that: Type): Boolean = this == that
 
+  /** Check if two types are not equivalent. */
   def !==(that: Type): Boolean = !(this === that)
 
   def noError: Boolean = true
@@ -39,7 +50,11 @@ sealed trait Type extends Annot {
   def isFuncType: Boolean = false
 }
 
+/**
+  * Base types.
+  */
 class BaseType extends Type {
+
   override def isBaseType: Boolean = true
 
   override def <=(that: Type): Boolean = that match {
@@ -48,27 +63,50 @@ class BaseType extends Type {
   }
 }
 
+/**
+  * A base type which is also JVM native. Currently, only int and bool are.
+  */
 trait JNativeType extends BaseType
 
+/**
+  * Integer type.
+  */
 object IntType extends JNativeType {
+
   override def toString: String = "int"
 }
 
+/**
+  * Boolean type.
+  */
 object BoolType extends JNativeType {
+
   override def toString: String = "bool"
 }
 
+/**
+  * String type.
+  */
 object StringType extends BaseType {
+
   override def toString: String = "string"
 }
 
+/**
+  * Void type. Only possible as a function return type.
+  */
 object VoidType extends BaseType {
+
   override def isVoidType: Boolean = true
 
   override def toString: String = "void"
 }
 
+/**
+  * Null type. Any {{{ null }}} literal will have this type.
+  */
 object NullType extends BaseType {
+
   override def <=(that: Type): Boolean = that match {
     case NoType | NullType | _: ClassType => true
     case _ => false
@@ -77,7 +115,14 @@ object NullType extends BaseType {
   override def toString: String = "null"
 }
 
+/**
+  * Class type.
+  *
+  * @param name   class name
+  * @param parent type of super class (if any)
+  */
 case class ClassType(name: String, parent: Option[ClassType] = None) extends Type {
+
   override def <=(that: Type): Boolean = that match {
     case NoType => true
     case _: ClassType => parent match {
@@ -97,7 +142,13 @@ case class ClassType(name: String, parent: Option[ClassType] = None) extends Typ
   override def toString: String = s"class $name"
 }
 
+/**
+  * Array type.
+  *
+  * @param elemType element type
+  */
 case class ArrayType(elemType: Type) extends Type {
+
   override def <=(that: Type): Boolean = that match {
     case NoType => true
     case _ => this === that
@@ -114,20 +165,29 @@ case class ArrayType(elemType: Type) extends Type {
       // `(int => int)[]` means an array of functions from integers to integers, but
       // `int => int[]` means a function from integers to integer arrays
       s"($elemType)[]"
-    } else s"$elemType[]"
+    } else {
+      s"$elemType[]"
+    }
   }
 }
 
-case class FunType(params: List[Type], ret: Type) extends Type {
+/**
+  * Function type.
+  *
+  * @param args type of arguments
+  * @param ret  type of return value
+  */
+case class FunType(args: List[Type], ret: Type) extends Type {
+
   override def <=(that: Type): Boolean = that match {
     case NoType => true
-    case FunType(params2, ret2) => (params.length == params2.length) &&
-      (ret <= ret2) && (params2 zip params).forall { case (p2, p) => p2 <= p }
+    case FunType(params2, ret2) => (args.length == params2.length) &&
+      (ret <= ret2) && (params2 zip args).forall { case (p2, p) => p2 <= p }
     case _ => false
   }
 
   override def ===(that: Type): Boolean = that match {
-    case FunType(ts, t) => ret === t && params.length == ts.length && (params zip ts).forall {
+    case FunType(ts, t) => ret === t && args.length == ts.length && (args zip ts).forall {
       case (t1, t2) => t1 === t2
     }
     case _ => false
@@ -136,7 +196,7 @@ case class FunType(params: List[Type], ret: Type) extends Type {
   override def isFuncType: Boolean = true
 
   override def toString: String = {
-    val ps = params match {
+    val ps = args match {
       case Nil => "()"
       case t :: Nil => t.toString
       case ts => s"(${ ts.mkString(", ") })"
@@ -145,7 +205,11 @@ case class FunType(params: List[Type], ret: Type) extends Type {
   }
 }
 
+/**
+  * Representing an error type.
+  */
 object NoType extends Type {
+
   override def <=(that: Type): Boolean = true
 
   override def noError: Boolean = false
@@ -156,6 +220,14 @@ object NoType extends Type {
 object TypeImplicit {
 
   implicit class TypeAnnotatedHasType(self: Annotated[Type]) {
+
+    /**
+      * Access a node that is annotated with a [[Type]] by the field name `typ`.
+      *
+      * @example If `x` is annotated with a [[FunType]], then {{{ x.typ }}} gives you {{{ x.annot: FunType }}}.
+      *
+      * @return the annotation
+      */
     def typ: Type = self.annot
   }
 

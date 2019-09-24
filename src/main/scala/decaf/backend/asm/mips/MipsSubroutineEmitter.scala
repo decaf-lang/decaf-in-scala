@@ -33,12 +33,14 @@ class MipsSubroutineEmitter private[mips](emitter: MipsAsmEmitter, info: Subrout
   extends SubroutineEmitter(emitter, info) {
 
   override def emitStoreToStack(src: Reg, temp: Temp): Unit = {
-    if (!offsets.contains(temp)) if (temp.index < info.numArgs) { // Always map arg `i` to `SP + 4 * i`.
-      offsets(temp) = 4 * temp.index
-    }
-    else {
-      offsets(temp) = nextLocalOffset
-      nextLocalOffset += 4
+    if (!offsets.contains(temp)) {
+      if (temp.index < info.numArgs) { // Always map arg `i` to `SP + 4 * i`.
+        offsets(temp) = 4 * temp.index
+      }
+      else {
+        offsets(temp) = nextLocalOffset
+        nextLocalOffset += 4
+      }
     }
     buf += new Mips.NativeStoreWord(src, Mips.SP, offsets(temp))
   }
@@ -77,7 +79,9 @@ class MipsSubroutineEmitter private[mips](emitter: MipsAsmEmitter, info: Subrout
     for {
       (reg, i) <- Mips.calleeSaved.zipWithIndex
       if used(reg)
-    } printer.printInstr(new Mips.NativeStoreWord(reg, Mips.SP, info.argsSize + 4 * i), "save value of " + reg)
+    } {
+      printer.printInstr(new Mips.NativeStoreWord(reg, Mips.SP, info.argsSize + 4 * i), "save value of " + reg)
+    }
     printer.printComment("end of prologue")
     printer.println()
 
@@ -94,8 +98,10 @@ class MipsSubroutineEmitter private[mips](emitter: MipsAsmEmitter, info: Subrout
     for {
       (reg, i) <- Mips.calleeSaved.zipWithIndex
       if used(reg)
-    } printer.printInstr(new Mips.NativeLoadWord(Mips.calleeSaved(i), Mips.SP, info.argsSize + 4 * i),
-      "restore value of $S" + i)
+    } {
+      printer.printInstr(new Mips.NativeLoadWord(Mips.calleeSaved(i), Mips.SP, info.argsSize + 4 * i),
+        "restore value of $S" + i)
+    }
     if (info.hasCalls) {
       printer.printInstr(new Mips.NativeLoadWord(Mips.RA, Mips.SP, info.argsSize + 32), "restore the return address")
     }

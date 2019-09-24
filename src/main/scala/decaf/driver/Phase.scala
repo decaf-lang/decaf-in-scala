@@ -10,11 +10,14 @@ import decaf.driver.error.ErrorIssuer
   *
   * @tparam In  type of input
   * @tparam Out type of output
-  * @param name phase name
+  * @param name   phase name
+  * @param config compiler configuration
   * @see [[decaf.driver.Tasks]]
   * @see [[ErrorIssuer]]
   */
-abstract class Phase[In, Out](val name: String) extends ErrorIssuer {
+abstract class Phase[In, Out](val name: String, protected val config: Config)
+  extends Task[In, Out] with ErrorIssuer {
+
   /**
     * Entry of the actual transformation.
     *
@@ -29,7 +32,7 @@ abstract class Phase[In, Out](val name: String) extends ErrorIssuer {
     *
     * @param output output of the transformation
     */
-  def onSucceed(output: Out)(implicit config: Config): Unit = {}
+  def onSucceed(output: Out): Unit = {}
 
   /**
     * Entry of the phase.
@@ -37,7 +40,7 @@ abstract class Phase[In, Out](val name: String) extends ErrorIssuer {
     * @param input input
     * @return output (if succeeds)
     */
-  def apply(input: In)(implicit config: Config): Option[Out] = {
+  override def apply(input: In): Option[Out] = {
     val out = transform(input)
     if (hasError) {
       printErrors(System.err)

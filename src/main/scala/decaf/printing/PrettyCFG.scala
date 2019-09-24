@@ -4,7 +4,9 @@ import decaf.backend.dataflow.{BasicBlock, CFG}
 import decaf.lowlevel.instr.PseudoInstr
 import decaf.lowlevel.log.IndentPrinter
 
+/** Pretty print a control-flow graph. */
 class PrettyCFG[I <: PseudoInstr](printer: IndentPrinter) extends PrettyPrinter[CFG[I]](printer) {
+
   override def pretty(graph: CFG[I]): Unit = {
     printer.println("CFG")
     indent {
@@ -25,9 +27,12 @@ class PrettyCFG[I <: PseudoInstr](printer: IndentPrinter) extends PrettyPrinter[
       printer.prettyFormatLn("liveOut = %s", bb.liveOut)
       printer.println()
 
-      if (bb.isEmpty) printer.println("<empty>")
-      else bb.foreach { loc =>
-        printer.prettyFormatLn("%s # liveOut = %s", loc.instr, loc.liveOut)
+      if (bb.isEmpty) {
+        printer.println("<empty>")
+      } else {
+        bb.foreach { loc =>
+          printer.prettyFormatLn("%s # liveOut = %s", loc.instr, loc.liveOut)
+        }
       }
     }
   }

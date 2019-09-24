@@ -1,25 +1,39 @@
 package decaf.frontend.tac
 
-
 import decaf.frontend.annot.SymbolImplicit._
 import decaf.frontend.annot.TypeImplicit._
 import decaf.frontend.annot.{BoolType, IntType, LocalVarSymbol, StringType}
+import decaf.frontend.tree.TreeNode
+import decaf.frontend.tree.TypedTree._
 import decaf.lowlevel.StringUtils
 import decaf.lowlevel.instr.Temp
 import decaf.lowlevel.label.Label
 import decaf.lowlevel.tac.{FuncVisitor, Intrinsic, RuntimeError, TacInstr}
-import decaf.frontend.tree.TreeNode
-import decaf.frontend.tree.TypedTree._
 import decaf.util.Conversions._
 
 import scala.collection.mutable
 
+/**
+  * Helper methods for TAC emission.
+  */
 trait TacEmitter {
 
   class Context {
+
+    /**
+      * Allocated temps for every local variable.
+      */
     var vars = new mutable.TreeMap[LocalVarSymbol, Temp]
   }
 
+  /**
+    * Emit code for a statement.
+    *
+    * @param stmt      statement
+    * @param ctx       context
+    * @param loopExits a list of labels indicating loop exits (the first label is the exit of the current loop)
+    * @param fv        function visitor
+    */
   def emitStmt(stmt: Stmt)(implicit ctx: Context, loopExits: List[Label], fv: FuncVisitor): Unit = {
     stmt match {
       case Block(stmts) => stmts.foreach(emitStmt)
@@ -52,17 +66,17 @@ trait TacEmitter {
       case If(cond, trueBranch, falseBranch) =>
         val t = emitExpr(cond)
         falseBranch match {
-          case Some(f) => emitIfThenElse(t, emitStmt(trueBranch), emitStmt(f))
-          case None => emitIfThen(t, emitStmt(trueBranch))
+          case Some(f) => ifThenElse(t, emitStmt(trueBranch), emitStmt(f))
+          case None => ifThen(t, emitStmt(trueBranch))
         }
 
       case While(cond, body) =>
         val exit = fv.freshLabel
-        emitWhile(emitExpr(cond), emitStmt(body)(ctx, exit :: loopExits, fv), exit)
+        loop(emitExpr(cond), emitStmt(body)(ctx, exit :: loopExits, fv), exit)
       case For(init, cond, update, body) =>
         val exit = fv.freshLabel
         emitStmt(init)
-        emitWhile(emitExpr(cond), {
+        loop(emitExpr(cond), {
           emitStmt(body)(ctx, exit :: loopExits, fv)
           emitStmt(update)
         }, exit)
@@ -87,6 +101,14 @@ trait TacEmitter {
     }
   }
 
+  /**
+    * Emit code for an expression.
+    *
+    * @param expr expression
+    * @param ctx  context
+    * @param fv   function visitor
+    * @return a temp storing the value of this expression
+    */
   def emitExpr(expr: Expr)(implicit ctx: Context, fv: FuncVisitor): Temp = {
     expr match {
       case IntLit(value) => fv.visitLoad(value)
@@ -163,14 +185,17 @@ trait TacEmitter {
         if (method.typ.ret.isVoidType) {
           fv.visitMemberCall(rt, method.owner.name, method.name, as)
           null
-        } else fv.visitMemberCall(rt, method.owner.name, method.name, as, true)
+        } else {
+          fv.visitMemberCall(rt, method.owner.name, method.name, as, true)
+        }
       case StaticCall(method, args) =>
         val as = args.map(emitExpr)
         if (method.typ.ret.isVoidType) {
           fv.visitStaticCall(method.owner.name, method.name, as)
           null
-        } else fv.visitStaticCall(method.owner.name, method.name, as, true)
-
+        } else {
+          fv.visitStaticCall(method.owner.name, method.name, as, true)
+        }
       case ClassTest(obj, clazz) if obj.typ <= clazz.typ =>
         // Accelerate: when obj.type <: is.type, the test must be successful!
         fv.visitLoad(true)
@@ -232,13 +257,13 @@ trait TacEmitter {
     *
     * @param cond   temp of condition
     * @param action code (to be generated) of the true branch
-    * @param mv     current method visitor
+    * @param fv     function visitor
     */
-  private def emitIfThen(cond: Temp, action: => Unit)(implicit mv: FuncVisitor): Unit = {
-    val skip = mv.freshLabel
-    mv.visitBranch(TacInstr.CondBranch.Op.BEQZ, cond, skip)
+  private def ifThen(cond: Temp, action: => Unit)(implicit fv: FuncVisitor): Unit = {
+    val skip = fv.freshLabel
+    fv.visitBranch(TacInstr.CondBranch.Op.BEQZ, cond, skip)
     action
-    mv.visitLabel(skip)
+    fv.visitLabel(skip)
   }
 
   /**
@@ -263,17 +288,17 @@ trait TacEmitter {
     * @param cond        temp of condition
     * @param trueBranch  code (to be generated) of the true branch
     * @param falseBranch code (to be generated) of the false branch
-    * @param mv          current method visitor
+    * @param fv          function visitor
     */
-  private def emitIfThenElse(cond: Temp, trueBranch: => Unit, falseBranch: => Unit)(implicit mv: FuncVisitor): Unit = {
-    val skip = mv.freshLabel
-    val exit = mv.freshLabel
-    mv.visitBranch(TacInstr.CondBranch.Op.BEQZ, cond, skip)
+  private def ifThenElse(cond: Temp, trueBranch: => Unit, falseBranch: => Unit)(implicit fv: FuncVisitor): Unit = {
+    val skip = fv.freshLabel
+    val exit = fv.freshLabel
+    fv.visitBranch(TacInstr.CondBranch.Op.BEQZ, cond, skip)
     trueBranch
-    mv.visitBranch(exit)
-    mv.visitLabel(skip)
+    fv.visitBranch(exit)
+    fv.visitLabel(skip)
     falseBranch
-    mv.visitLabel(exit)
+    fv.visitLabel(exit)
   }
 
   /**
@@ -297,27 +322,28 @@ trait TacEmitter {
     * @param test  code (to be generated) of the loop condition
     * @param block code (to be generated) of the loop body
     * @param exit  label of loop exit
-    * @param mv    current method visitor
+    * @param fv    function visitor
     */
-  private def emitWhile(test: => Temp, block: => Unit, exit: Label)(implicit mv: FuncVisitor): Unit = {
-    val entry = mv.freshLabel
-    mv.visitLabel(entry)
+  private def loop(test: => Temp, block: => Unit, exit: Label)(implicit fv: FuncVisitor): Unit = {
+    val entry = fv.freshLabel
+    fv.visitLabel(entry)
     val cond = test
-    mv.visitBranch(TacInstr.CondBranch.Op.BEQZ, cond, exit)
+    fv.visitBranch(TacInstr.CondBranch.Op.BEQZ, cond, exit)
     block
-    mv.visitBranch(entry)
-    mv.visitLabel(exit)
+    fv.visitBranch(entry)
+    fv.visitLabel(exit)
   }
 
   /**
     * Emit code for initializing a new array.
-    * <p>
-    * In memory, an array of length {@code n} takes {@code (n + 1) * 4} bytes:
-    * - the first 4 bytes: length
-    * - the rest bytes: data
-    * <p>
+    *
+    * In memory, an array of length `n` takes `(n + 1) * 4` bytes, where
+    *
+    *     - the first 4 bytes: length
+    *     - the rest bytes: data
+    *
     * Pseudo code:
-    * <pre>
+    * {{{
     * error = length < 0
     * if (error) {
     * throw RuntimeError.NEGATIVE_ARR_SIZE
@@ -334,40 +360,40 @@ trait TacEmitter {
     * p -= 4
     * }
     * ret = (a + 4)
-    * </pre>
+    * }}}
     *
     * @param length temp of array length
-    * @param mv     current method visitor
+    * @param fv     function visitor
     * @return a temp storing the address of the first element of the array
     */
-  private def emitArrayInit(length: Temp)(implicit mv: FuncVisitor): Temp = {
-    val zero = mv.visitLoad(0)
-    emitIfThen(mv.visitBinary(TacInstr.Binary.Op.LES, length, zero), {
-      mv.visitPrint(RuntimeError.NEGATIVE_ARR_SIZE)
-      mv.visitIntrinsicCall(Intrinsic.HALT)
+  private def emitArrayInit(length: Temp)(implicit fv: FuncVisitor): Temp = {
+    val zero = fv.visitLoad(0)
+    ifThen(fv.visitBinary(TacInstr.Binary.Op.LES, length, zero), {
+      fv.visitPrint(RuntimeError.NEGATIVE_ARR_SIZE)
+      fv.visitIntrinsicCall(Intrinsic.HALT)
     })
-    val units = mv.visitBinary(TacInstr.Binary.Op.ADD, length, mv.visitLoad(1))
-    val four = mv.visitLoad(4)
-    val size = mv.visitBinary(TacInstr.Binary.Op.MUL, units, four)
-    val a = mv.visitIntrinsicCall(Intrinsic.ALLOCATE, true, size)
-    mv.visitStoreTo(a, length)
-    val p = mv.visitBinary(TacInstr.Binary.Op.ADD, a, size)
-    mv.visitBinarySelf(TacInstr.Binary.Op.SUB, p, four)
-    emitWhile(mv.visitBinary(TacInstr.Binary.Op.NEQ, p, a), {
-      mv.visitStoreTo(p, zero)
-      mv.visitBinarySelf(TacInstr.Binary.Op.SUB, p, four)
-    }, mv.freshLabel)
-    mv.visitBinary(TacInstr.Binary.Op.ADD, a, four)
+    val units = fv.visitBinary(TacInstr.Binary.Op.ADD, length, fv.visitLoad(1))
+    val four = fv.visitLoad(4)
+    val size = fv.visitBinary(TacInstr.Binary.Op.MUL, units, four)
+    val a = fv.visitIntrinsicCall(Intrinsic.ALLOCATE, true, size)
+    fv.visitStoreTo(a, length)
+    val p = fv.visitBinary(TacInstr.Binary.Op.ADD, a, size)
+    fv.visitBinarySelf(TacInstr.Binary.Op.SUB, p, four)
+    loop(fv.visitBinary(TacInstr.Binary.Op.NEQ, p, a), {
+      fv.visitStoreTo(p, zero)
+      fv.visitBinarySelf(TacInstr.Binary.Op.SUB, p, four)
+    }, fv.freshLabel)
+    fv.visitBinary(TacInstr.Binary.Op.ADD, a, four)
   }
 
   /**
     * Emit code for computing the address of an array element.
-    * <p>
+    *
     * Pseudo code:
-    * <pre>
+    * {{{
     * length = *(array - 4)
-    * error1 = index {@literal <} 0
-    * error2 = index {@literal >=} length
+    * error1 = index < 0
+    * error2 = index >= length
     * error = error1 || error2
     * if (error) {
     * throw RuntimeError.ARRAY_INDEX_OUT_OF_BOUND
@@ -375,31 +401,32 @@ trait TacEmitter {
     *
     * offset = index * 4
     * ret = array + offset
-    * </pre>
+    * }}}
     *
     * @param array temp of the array
     * @param index temp of the index
+    * @param fv    function visitor
     * @return a temp storing the address of the element
     */
-  private def emitArrayElementAddress(array: Temp, index: Temp)(implicit mv: FuncVisitor): Temp = {
-    val length = mv.visitLoadFrom(array, -4)
-    val zero = mv.visitLoad(0)
-    val error1 = mv.visitBinary(TacInstr.Binary.Op.LES, index, zero)
-    val error2 = mv.visitBinary(TacInstr.Binary.Op.GEQ, index, length)
-    emitIfThen(mv.visitBinary(TacInstr.Binary.Op.LOR, error1, error2), {
-      mv.visitPrint(RuntimeError.ARRAY_INDEX_OUT_OF_BOUND)
-      mv.visitIntrinsicCall(Intrinsic.HALT)
+  private def emitArrayElementAddress(array: Temp, index: Temp)(implicit fv: FuncVisitor): Temp = {
+    val length = fv.visitLoadFrom(array, -4)
+    val zero = fv.visitLoad(0)
+    val error1 = fv.visitBinary(TacInstr.Binary.Op.LES, index, zero)
+    val error2 = fv.visitBinary(TacInstr.Binary.Op.GEQ, index, length)
+    ifThen(fv.visitBinary(TacInstr.Binary.Op.LOR, error1, error2), {
+      fv.visitPrint(RuntimeError.ARRAY_INDEX_OUT_OF_BOUND)
+      fv.visitIntrinsicCall(Intrinsic.HALT)
     })
-    val four = mv.visitLoad(4)
-    val offset = mv.visitBinary(TacInstr.Binary.Op.MUL, index, four)
-    mv.visitBinary(TacInstr.Binary.Op.ADD, array, offset)
+    val four = fv.visitLoad(4)
+    val offset = fv.visitBinary(TacInstr.Binary.Op.MUL, index, four)
+    fv.visitBinary(TacInstr.Binary.Op.ADD, array, offset)
   }
 
   /**
     * Emit code for testing if an object is an instance of class.
-    * <p>
+    *
     * Pseudo code:
-    * <pre>
+    * {{{
     * target = LoadVtbl(clazz)
     * t = *object
     * loop:
@@ -409,25 +436,26 @@ trait TacEmitter {
     * if (t != 0) goto loop
     * ret = 0 // t == null
     * exit:
-    * </pre>
+    * }}}
     *
     * @param obj   temp of the object/instance
     * @param clazz name of the class
+    * @param fv    function visitor
     * @return a temp storing the result (1 for true, and 0 for false)
     */
-  private def emitClassTest(obj: Temp, clazz: String)(implicit mv: FuncVisitor): Temp = {
-    val target = mv.visitLoadVTable(clazz)
-    val t = mv.visitLoadFrom(obj)
-    val loop = mv.freshLabel
-    val exit = mv.freshLabel
-    mv.visitLabel(loop)
-    val ret = mv.visitBinary(TacInstr.Binary.Op.EQU, t, target)
-    mv.visitBranch(TacInstr.CondBranch.Op.BNEZ, ret, exit)
-    mv.visitRaw(new TacInstr.Memory(TacInstr.Memory.Op.LOAD, t, t, 0))
-    mv.visitBranch(TacInstr.CondBranch.Op.BNEZ, t, loop)
-    val zero = mv.visitLoad(0)
-    mv.visitAssign(ret, zero)
-    mv.visitLabel(exit)
+  private def emitClassTest(obj: Temp, clazz: String)(implicit fv: FuncVisitor): Temp = {
+    val target = fv.visitLoadVTable(clazz)
+    val t = fv.visitLoadFrom(obj)
+    val loop = fv.freshLabel
+    val exit = fv.freshLabel
+    fv.visitLabel(loop)
+    val ret = fv.visitBinary(TacInstr.Binary.Op.EQU, t, target)
+    fv.visitBranch(TacInstr.CondBranch.Op.BNEZ, ret, exit)
+    fv.visitRaw(new TacInstr.Memory(TacInstr.Memory.Op.LOAD, t, t, 0))
+    fv.visitBranch(TacInstr.CondBranch.Op.BNEZ, t, loop)
+    val zero = fv.visitLoad(0)
+    fv.visitAssign(ret, zero)
+    fv.visitLabel(exit)
     ret
   }
 }

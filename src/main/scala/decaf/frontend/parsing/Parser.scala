@@ -2,29 +2,62 @@ package decaf.frontend.parsing
 
 import java.io.InputStream
 
-import decaf.driver.{Config, Phase}
 import decaf.driver.error._
-import decaf.lowlevel.log.IndentPrinter
+import decaf.driver.{Config, Phase}
 import decaf.frontend.parsing.Util._
 import decaf.frontend.parsing.antlr.{DecafParser, DecafParserBaseVisitor}
-import decaf.printing.PrettyTree
 import decaf.frontend.tree.SyntaxTree._
 import decaf.frontend.tree.TreeNode
 import decaf.frontend.tree.TreeNode.{Id, Modifiers}
+import decaf.lowlevel.log.IndentPrinter
+import decaf.printing.PrettyTree
+import decaf.util.Conversions._
 import org.antlr.v4.runtime._
 
-import scala.jdk.CollectionConverters._
-
 /**
-  * Decaf parser, corresponds to the "parser" phase.
+  * The parser phase: parse a Decaf source and build an abstract syntax tree.
+  * Antlr specification file: `src/main/antlr4/DecafParser.g4`.
+  *
+  * ===Overview===
+  * Strictly speaking, it is NOT this class, but the Antlr-generated code that parses the Decaf source. What we need is
+  * to simply translate the parsing tree yielded by Antlr into a [[decaf.frontend.tree.SyntaxTree]] defined by us.
+  * In short, a tree transformation.
+  *
+  * ===Implementation===
+  * The entire parsing process:
+  *
+  *   1. Antlr-generated parser is invoked and parses the input source. Errors are captured by the above listener.
+  *   1. If a fatal error (unrecognized character) occurs, report that and exit. Other errors are appended but they
+  * will not interrupt the process.
+  *   1. Finally, call the visitors below and we either obtain a syntax tree or fail with errors.
+  *
+  * Instead of doing the ugly nested instance-of check, like:
+  * {{{
+  * if (node.isInstanceOf[TopLevel]) {
+  *   // do transformation
+  * } else if (node.isInstanceOf[ClassDef]) {
+  *   // do transformation
+  * } else if ...
+  * }}}
+  *
+  * We stick to Java's visitor pattern -- also suggested by Antlr. Although a visitor returns a result of type `T`,
+  * but all methods in the visitor must have the same `T`. Apparently, this doesn't fit our situation. The syntax
+  * tree nodes are ''heterogeneous'' -- ClassDef, Field, Stmt, Expr, TypeLit, etc. Thus, a solution is to create
+  * separate visitors for each of them, and call the visitor we needed. For example, to create a `While` node,
+  * we first call the `ExprVisitor` to visit the condition, which gives us an expression `c`. Then, we call the
+  * `StmtVisitor` to visit the loop body, which gives us an expression `s`. Finally, calling `While(c, s)` gives us
+  * the tree node.
+  *
+  * Besides, remember to set the position, either by `positioned`, which regard the start location of the first
+  * token matched in the rule as the position, or set by hand if this is not the case.
   */
-class Parser extends Phase[InputStream, Tree]("parser") {
+class Parser(implicit config: Config) extends Phase[InputStream, Tree]("parser", config) {
 
   /**
-    * Entry.
+    * Transformer entry.
     *
-    * @param in the input stream
-    * @return the syntax tree
+    * @param in input stream
+    * @return abstract syntax tree
     */
   override def transform(in: InputStream): Tree = {
     val stream = CharStreams.fromStream(in)
@@ -46,10 +79,9 @@ class Parser extends Phase[InputStream, Tree]("parser") {
   /**
     * After parsing succeeds, pretty print the tree if necessary.
     *
-    * @param tree   the syntax tree
-    * @param config the compiler configuration
+    * @param tree syntax tree
     */
-  override def onSucceed(tree: Tree)(implicit config: Config): Unit = {
+  override def onSucceed(tree: Tree): Unit = {
     if (config.target == Config.Target.PA1) { // pretty only when the target is PA1
       val printer = new PrettyTree(new IndentPrinter(config.output))
       printer.pretty(tree)
@@ -58,71 +90,43 @@ class Parser extends Phase[InputStream, Tree]("parser") {
   }
 
   /**
-    * Our own error listener that can append parsing errors to our error issuer. We have to do this because Antlr
-    * has his own error recovery strategy -- but we don't want that!
+    * Our own error listener that can append parsing errors to our error issuer.
+    *
+    * We have to do this because Antlr has his own error recovery strategy -- but we don't want that!
     */
   object ErrorListener extends BaseErrorListener {
+
     override def syntaxError(recognizer: Recognizer[_, _], offendingSymbol: Any, lineNumber: Int,
                              charPositionInLine: Int, msg: String, e: RecognitionException): Unit = {
-      issue(new SyntaxError(msg, new Pos {
-        override def line: Int = lineNumber
-
-        override def column: Int = charPositionInLine + 1
-
-        override protected def lineContents: String = ???
-      }))
+      issue(new SyntaxError(msg, new Pos(lineNumber, charPositionInLine + 1)))
     }
   }
 
   // --------------------------------------------------------------------------------------------------------------
-  // The following methods do the actual parsing stuff. Strictly speaking, it is the Antlr-generated code that
-  // parses the decaf source. What we need to do is to simply translate the parsing tree yielded by Antlr into
-  // the SyntaxTree defined by ourselves. In short, a tree transformation.
-  //
-  // The entire parsing process:
-  // 1. Antlr-generated parser is invoked and parses the input source. Errors are captured by the above listener.
-  // 2. If a fatal error (unrecognized character) occurs, report that and exit. Other errors are appended but they
-  //    will not interrupt the process.
-  // 3. Finally, call the visitors below and we either obtain a syntax tree or fail with errors.
-  //
-  // Instead of doing the ugly nested instanceOf check, like this:
-  //
-  // if (node.isInstanceOf[TopLevel]) {
-  //   // do transformation
-  // } else if (node.isInstanceOf[ClassDef]) {
-  //   // do transformation
-  // } else if ...
-  //
-  // We stick to Java's visitor pattern -- also suggested by Antlr. Although a visitor returns a result of type T,
-  // but all methods in the visitor must have the same T. Apparently, this doesn't fit our situation. The syntax
-  // tree nodes are heterogeneous -- ClassDef, Field, Stmt, Expr, TypeLit, etc. Thus, a solution is to create
-  // separate visitors for each of them, and call the visitor we needed. For example, to create a While node,
-  // we first call the ExprVisitor to visit the condition, which gives us an expression `c`. Then, we call the
-  // StmtVisitor to visit the loop body, which gives us an expression `s`. Finally, call `While(c, s)` to construct
-  // the tree node.
-  //
-  // Besides, remember to set the position, either by `positioned`, which regard the start location of the first
-  // token matched in the rule as the position, set by hand if this is not the case.
+  // The following are our favorite visitors!
   // --------------------------------------------------------------------------------------------------------------
 
   object TopLevelVisitor extends DecafParserBaseVisitor[TopLevel] {
+
     override def visitTopLevel(ctx: DecafParser.TopLevelContext): TopLevel = positioned(ctx) {
-      val classes = ctx.classDef.asScala.toList.map(_.accept(ClassDefVisitor))
+      val classes = ctx.classDef.map(_.accept(ClassDefVisitor))
       TopLevel(classes)
     }
   }
 
   object ClassDefVisitor extends DecafParserBaseVisitor[ClassDef] {
+
     override def visitClassDef(ctx: DecafParser.ClassDefContext): ClassDef = positioned(ctx) {
       val id = ctx.id.accept(IdVisitor)
       // NOTE: if an optional symbol (like extendsClause) is undefined, its corresponding field is null.
       val parent = if (ctx.extendsClause != null) Some(ctx.extendsClause.id.accept(IdVisitor)) else None
-      val fields = ctx.field.asScala.toList.map(_.accept(FieldVisitor))
+      val fields = ctx.field.map(_.accept(FieldVisitor))
       ClassDef(id, parent, fields)
     }
   }
 
   object FieldVisitor extends DecafParserBaseVisitor[Field] {
+
     override def visitVarDef(ctx: DecafParser.VarDefContext): Field = {
       val typ = ctx.`var`.`type`.accept(TypeLitVisitor)
       val id = ctx.`var`.id.accept(IdVisitor)
@@ -133,17 +137,20 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       val returnType = ctx.`type`.accept(TypeLitVisitor)
       val id = ctx.id.accept(IdVisitor)
       val params =
-        if (ctx.varList == null) Nil else ctx.varList.`var`.asScala.toList.map(_.accept(VarVisitor))
+        if (ctx.varList == null) Nil else ctx.varList.`var`.map(_.accept(VarVisitor))
       val body = ctx.stmtBlock.accept(StmtVisitor)
       val mod =
-        if (ctx.STATIC == null) new Modifiers
-        else new Modifiers(Modifiers.STATIC, getPos(ctx.STATIC.getSymbol))
-
+        if (ctx.STATIC == null) {
+          new Modifiers
+        } else {
+          new Modifiers(Modifiers.STATIC, getPos(ctx.STATIC.getSymbol))
+        }
       MethodDef(mod, id, returnType, params, body).setPos(id.pos)
     }
   }
 
   object TypeLitVisitor extends DecafParserBaseVisitor[TypeLit] {
+
     override def visitIntType(ctx: DecafParser.IntTypeContext): TypeLit = positioned(ctx) { TInt() }
 
     override def visitBoolType(ctx: DecafParser.BoolTypeContext): TypeLit = positioned(ctx) { TBool() }
@@ -162,15 +169,17 @@ class Parser extends Phase[InputStream, Tree]("parser") {
   }
 
   object StmtVisitor extends DecafParserBaseVisitor[Stmt] {
+
     override def visitStmtBlock(ctx: DecafParser.StmtBlockContext): Stmt = positioned(ctx) {
-      val stmts = ctx.stmt.asScala.toList.map(_.accept(this))
+      val stmts = ctx.stmt.map(_.accept(this))
       Block(stmts)
     }
 
     override def visitLocalVarDef(ctx: DecafParser.LocalVarDefContext): Stmt = {
       val theVar = ctx.`var`.accept(VarVisitor)
-      if (ctx.expr == null) theVar
-      else {
+      if (ctx.expr == null) {
+        theVar
+      } else {
         val init = ctx.expr.accept(ExprVisitor)
         val ret = LocalVarDef(theVar.typeLit, theVar.id, Some(init), getPos(ctx.ASSIGN.getSymbol)).setPos(theVar.pos)
         ret
@@ -238,6 +247,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
   }
 
   object VarVisitor extends DecafParserBaseVisitor[LocalVarDef] {
+
     override def visitVar(ctx: DecafParser.VarContext): LocalVarDef = {
       val typ = ctx.`type`.accept(TypeLitVisitor)
       val id = ctx.id.accept(IdVisitor)
@@ -246,6 +256,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
   }
 
   object LValueVisitor extends DecafParserBaseVisitor[LValue] {
+
     override def visitLValueVar(ctx: DecafParser.LValueVarContext): LValue = {
       val receiver = if (ctx.expr != null) Some(ctx.expr.accept(ExprVisitor)) else None
       val id = ctx.id.accept(IdVisitor)
@@ -284,7 +295,7 @@ class Parser extends Phase[InputStream, Tree]("parser") {
       val buffer = new StringBuilder
       val startPos = getPos(ctx.OPEN_STRING.getSymbol)
       buffer += '"'
-      ctx.stringChar.asScala.foreach { node =>
+      ctx.stringChar.foreach { node =>
         if (node.ERROR_NEWLINE != null) { // handle new line in string
           issue(new NewlineInStrError(buffer.toString, getPos(node.ERROR_NEWLINE.getSymbol)))
         }
@@ -338,8 +349,11 @@ class Parser extends Phase[InputStream, Tree]("parser") {
 
     override def visitVarSelOrCall(ctx: DecafParser.VarSelOrCallContext): Expr = {
       val id = ctx.id.accept(IdVisitor)
-      if (ctx.exprList == null) VarSel(None, id).setPos(id.pos)
-      else Call(None, id, ctx.exprList.accept(ExprListVisitor)).setPos(getPos(ctx.LPAREN.getSymbol))
+      if (ctx.exprList == null) {
+        VarSel(None, id).setPos(id.pos)
+      } else {
+        Call(None, id, ctx.exprList.accept(ExprListVisitor)).setPos(getPos(ctx.LPAREN.getSymbol))
+      }
     }
 
     override def visitPath(ctx: DecafParser.PathContext): Expr = {
@@ -388,13 +402,18 @@ class Parser extends Phase[InputStream, Tree]("parser") {
   }
 
   object ExprListVisitor extends DecafParserBaseVisitor[List[Expr]] {
+
     override def visitExprList(ctx: DecafParser.ExprListContext): List[Expr] = {
-      if (ctx.expr == null) Nil
-      else ctx.expr.asScala.toList.map(_.accept(ExprVisitor))
+      if (ctx.expr == null) {
+        Nil
+      } else {
+        ctx.expr.map(_.accept(ExprVisitor))
+      }
     }
   }
 
   object IdVisitor extends DecafParserBaseVisitor[Id] {
+
     override def visitId(ctx: DecafParser.IdContext): Id = positioned(ctx) { Id(ctx.ID.getText) }
   }
 

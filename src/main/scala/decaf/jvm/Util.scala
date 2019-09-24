@@ -5,6 +5,7 @@ import decaf.frontend.tree.TreeNode
 import org.objectweb.asm.{Label, MethodVisitor, Opcodes, Type => ASMType}
 
 trait Util {
+
   val JAVA_SUPER_INTERNAL_NAME = ASMType.getInternalName(classOf[java.lang.Object])
   val CONSTRUCTOR_NAME = "<init>"
   val CONSTRUCTOR_DESC = ASMType.getMethodDescriptor(ASMType.VOID_TYPE)

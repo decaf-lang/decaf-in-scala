@@ -10,6 +10,7 @@ import decaf.lowlevel.instr.PseudoInstr
   * @param emitter assembly emitter
   */
 abstract class RegAlloc(var emitter: AsmEmitter) {
+
   /**
     * Entry of the main algorithm.
     *

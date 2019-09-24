@@ -7,17 +7,25 @@ import decaf.driver.Config.Target
 import decaf.lowlevel.log.Log
 import scopt.{OptionParser, Read}
 
+/**
+  * Command line option parser.
+  */
 object OptParser extends OptionParser[Config]("decaf") {
-  head("The decaf compiler", "v-19-fall", "(scala)")
+
+  head("The Decaf compiler,", "version course-19-fall", "(scala)")
 
   arg[File]("file")
     .required()
-    .text("input decaf source")
+    .text("input Decaf source")
     .action { case (f, config) => config.copy(source = f) }
     .validate { f =>
-      if (!f.isFile) Left("not a file")
-      else if (!f.exists) Left("not exist")
-      else Right()
+      if (!f.isFile) {
+        Left("not a file")
+      } else if (!f.exists) {
+        Left("not exist")
+      } else {
+        Right()
+      }
     }
 
   opt[File]('o', "output")
@@ -25,9 +33,13 @@ object OptParser extends OptionParser[Config]("decaf") {
     .text("output file for result, available except PA5 (default stdout)")
     .action { case (o, config) => config.copy(output = new FileOutputStream(o)) }
     .validate { f =>
-      if (!f.isFile) Left("not a file")
-      else if (!f.getParentFile.exists) Left("directory not exist")
-      else Right()
+      if (!f.isFile) {
+        Left("not a file")
+      } else if (!f.getParentFile.exists) {
+        Left("directory not exist")
+      } else {
+        Right()
+      }
     }
 
   opt[File]('d', "dir")
@@ -35,9 +47,13 @@ object OptParser extends OptionParser[Config]("decaf") {
     .text("output directory for low-level code, available >= PA3 (default .)")
     .action { case (d, config) => config.copy(dstDir = d) }
     .validate { d =>
-      if (!d.isDirectory) Left("not a directory")
-      else if (!d.exists) Left("not exist")
-      else Right()
+      if (!d.isDirectory) {
+        Left("not a directory")
+      } else if (!d.exists) {
+        Left("not exist")
+      } else {
+        Right()
+      }
     }
 
   opt[Config.Target.Value]('t', "target")
@@ -64,8 +80,11 @@ object OptParser extends OptionParser[Config]("decaf") {
 
   checkConfig { config =>
     if (config.logLevel.intValue < Level.OFF.intValue) { // enable logging
-      if (config.logFile == null) Log.setup(config.logLevel, config.logColor)
-      else Log.setup(config.logLevel, config.logColor, config.logFile.path)
+      if (config.logFile == null) {
+        Log.setup(config.logLevel, config.logColor)
+      } else {
+        Log.setup(config.logLevel, config.logColor, config.logFile.path)
+      }
     }
     Right()
   }

@@ -1,9 +1,9 @@
 package decaf.jvm
 
+import decaf.driver.{Config, Phase}
 import decaf.frontend.annot.SymbolImplicit._
 import decaf.frontend.annot.TypeImplicit._
 import decaf.frontend.annot.{ArrayType, JNativeType, LocalVarSymbol}
-import decaf.driver.{Config, Phase}
 import decaf.frontend.tree.TreeNode.{ArithOp, EqOrCmpOp}
 import decaf.frontend.tree.TypedTree._
 import decaf.frontend.tree.{TreeNode, TypedTree}
@@ -12,9 +12,24 @@ import org.objectweb.asm.{ClassWriter, Label, MethodVisitor, Opcodes}
 
 import scala.collection.mutable
 
-class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
+class JVMGen(implicit config: Config) extends Phase[Tree, List[JVMClass]]("jvm", config) with Util {
 
+  /**
+    * Transformer entry.
+    *
+    * @param input a typed abstract syntax tree
+    * @return a possibly collection of JVM classes
+    */
   override def transform(input: Tree): List[JVMClass] = input.classes.map(emitClass)
+
+  /**
+    * After generating JVM classes, dump them to binary files.
+    *
+    * @param classes JVM classes
+    */
+  override def onSucceed(classes: List[JVMClass]): Unit = {
+    classes.foreach { _.writeFile(config.dstDir) }
+  }
 
   /**
     * Generate bytecode for a decaf class.
@@ -98,6 +113,7 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
   type LocalVars = mutable.TreeMap[LocalVarSymbol, Int]
 
   private class Context(isStatic: Boolean = true) {
+
     val index: LocalVars = new LocalVars
 
     def declare(v: LocalVarSymbol): Int = {
@@ -253,9 +269,4 @@ class JVMGen extends Phase[Tree, List[JVMClass]]("jvm") with Util {
       mv.visitTypeInsn(Opcodes.CHECKCAST, internalName(clazz))
   }
 
-  override def onSucceed(output: List[JVMClass])(implicit config: Config): Unit = {
-    if (config.target == Config.Target.PA3_JVM) {
-      output.foreach { _.writeFile(config.dstDir) }
-    }
-  }
 }

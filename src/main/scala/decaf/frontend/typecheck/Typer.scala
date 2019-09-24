@@ -1,60 +1,35 @@
 package decaf.frontend.typecheck
 
+import decaf.driver.error._
+import decaf.driver.{Config, Phase}
 import decaf.frontend.annot.ScopeImplicit._
 import decaf.frontend.annot.SymbolImplicit._
 import decaf.frontend.annot.TypeImplicit._
 import decaf.frontend.annot._
-import decaf.driver.{Config, Phase}
-import decaf.driver.error._
-import decaf.lowlevel.log.IndentPrinter
 import decaf.frontend.parsing.Pos
-import decaf.printing.PrettyScope
 import decaf.frontend.tree.SyntaxTree.NoAnnot
 import decaf.frontend.tree.TreeNode._
 import decaf.frontend.tree.TypedTree._
 import decaf.frontend.tree.{SyntaxTree => Syn}
+import decaf.lowlevel.log.IndentPrinter
+import decaf.printing.PrettyScope
 
 /**
-  * Type check. This phase inputs a SyntaxTree and outputs a TypedTree. In detail, we split this in two passes --
-  * namer and typer.
+  * The typer phase: type check every statement and expression. It starts right after [[Namer]].
   *
-  * Why two passes? Note that all defined classes are visible to every other class, which means we can access another
-  * class's members, and of course the type that itself represents, e.g.
-  * {{{
-  *    class A {
-  *      class B foo; // access B
-  *      void bar() {
-  *        foo.baz(); // access baz of B
-  *      }
-  *    }
-  *    class B {
-  *      void baz();
-  *    }
-  * }}}
-  *
-  * Apparently, classes cannot be resolved in the order they presented in the syntax tree: class A refers to class B,
-  * whose definition goes later. To tackle this issue, one possible way is to first scan all classes "roughly"
-  * and then step into details of every method definition -- because at that time, signatures of class members are
-  * known. That's why we split the type checking phase into two passes: In the namer pass, we only scan class
-  * members, while ignoring any method body, because that's enough for us to know what a class looks like.
-  * In the typer pass, we then step into every method body and type check every single statement and expression.
-  *
-  * Typer will NOT be interrupted by type errors. Instead, an ill-typed term will either be filled with a guessed
+  * Typer will NOT be interrupted by any type error. Instead, an ill-typed term will either be filled with a guessed
   * type, if this term could only be of that type in some situations, or we replace it with an error node.
   *
-  * By the way, realizing that a context/environment is fairly needed in the entire type checking process, we need to
-  * pass it as a parameter all the time. Thanks to the implicits, we save as many characters as we can, if the wanted
-  * context is the same as the "current" one.
-  *
-  * This file only involves the code for typer pass.
+  * @see [[Namer]]
+  * @see [[decaf.frontend.annot.Type]]
   */
-class Typer extends Phase[Tree, Tree]("typer") with Util {
+class Typer(implicit config: Config) extends Phase[Tree, Tree]("typer", config) with Util {
 
   /**
-    * Entry.
+    * Transformer entry.
     *
     * @param tree a typed tree with untyped holes
-    * @return a typed tree without holes if succeeds
+    * @return a fully typed (i.e. without holes) tree if succeeds
     */
   override def transform(tree: Tree): Tree = {
     val global = new ScopeContext(tree.scope)
@@ -82,10 +57,9 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
   /**
     * After type checking succeeds, pretty print scopes if necessary.
     *
-    * @param tree   the typed tree
-    * @param config the compiler configuration
+    * @param tree the typed tree
     */
-  override def onSucceed(tree: Tree)(implicit config: Config): Unit = {
+  override def onSucceed(tree: Tree): Unit = {
     if (config.target == Config.Target.PA2) {
       val printer = new PrettyScope(new IndentPrinter(config.output))
       printer.pretty(tree.scope)
@@ -274,7 +248,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         NewArray(t, l)(ArrayType(t.typ)) // make a fair guess
 
       case Syn.NewClass(id) =>
-        ctx.lookupClass(id) match {
+        ctx.global.find(id) match {
           case Some(clazz) => NewClass(clazz)(clazz.typ)
           case None => issue(new ClassNotFoundError(id, expr.pos)); err
         }
@@ -283,14 +257,15 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         if (ctx.currentMethod.isStatic) issue(new ThisInStaticFuncError(expr.pos))
         This()(ctx.currentClass.typ) // make a fair guess
 
-      case call @ Syn.Call(Some(Syn.VarSel(None, id)), method, _) if ctx.containsClass(id) =>
+      case call @ Syn.Call(Some(Syn.VarSel(None, id)), method, _) if ctx.global.contains(id) =>
         // Special case: invoking a static method, like MyClass.foo()
-        val clazz = ctx.getClass(id)
+        val clazz = ctx.global(id)
         clazz.scope.lookup(method) match {
           case Some(symbol) => symbol match {
             case m: MethodSymbol =>
-              if (m.isStatic) typeCall(call, None, m)
-              else { issue(new NotClassFieldError(method, clazz.typ, expr.pos)); err }
+              if (m.isStatic) {
+                typeCall(call, None, m)
+              } else { issue(new NotClassFieldError(method, clazz.typ, expr.pos)); err }
             case _ => issue(new NotClassMethodError(method, clazz.typ, expr.pos)); err
           }
           case None => issue(new FieldNotFoundError(method, clazz.typ, expr.pos)); err
@@ -305,7 +280,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
             if (args.nonEmpty) issue(new BadLengthArgError(args.length, expr.pos))
             ArrayLen(r.get)(IntType)
           case t @ ClassType(c, _) =>
-            ctx.getClass(c).scope.lookup(method) match {
+            ctx.global(c).scope.lookup(method) match {
               case Some(sym) => sym match {
                 case m: MethodSymbol => typeCall(call, r, m)
                 case _ => issue(new NotClassMethodError(method, t, expr.pos)); err
@@ -318,7 +293,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
       case Syn.ClassTest(obj, clazz) =>
         val o = typeExpr(obj)
         if (!o.typ.isClassType) issue(new NotClassError(o.typ, expr.pos))
-        ctx.lookupClass(clazz) match {
+        ctx.global.find(clazz) match {
           case Some(c) => ClassTest(o, c)(BoolType)
           case None => issue(new ClassNotFoundError(clazz.name, expr.pos)); err
         }
@@ -326,7 +301,7 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
       case Syn.ClassCast(obj, clazz) =>
         val o = typeExpr(obj)
         if (!o.typ.isClassType) issue(new NotClassError(o.typ, o.pos))
-        ctx.lookupClass(clazz) match {
+        ctx.global.find(clazz) match {
           case Some(c) => ClassCast(o, c)(c.typ)
           case None => issue(new ClassNotFoundError(clazz.name, expr.pos)); err
         }
@@ -337,23 +312,27 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
   private def typeCall(call: Syn.Call, receiver: Option[Expr], method: MethodSymbol)
                       (implicit ctx: ScopeContext): Expr = {
     // Cannot call this's member methods in a static method
-    if (receiver.isEmpty && ctx.currentMethod.isStatic && !method.isStatic)
+    if (receiver.isEmpty && ctx.currentMethod.isStatic && !method.isStatic) {
       issue(new RefNonStaticError(method.name, ctx.currentMethod.name, call.pos))
-
+    }
     val args = call.args
-    if (method.arity != args.length)
+    if (method.arity != args.length) {
       issue(new BadArgCountError(method.name, method.arity, args.length, call.pos))
-
-    val as = (method.typ.params zip args).zipWithIndex.map {
+    }
+    val as = (method.typ.args zip args).zipWithIndex.map {
       case ((t, a), i) =>
         val e = typeExpr(a)
-        if (e.typ.noError && !(e.typ <= t))
+        if (e.typ.noError && !(e.typ <= t)) {
           issue(new BadArgTypeError(i + 1, t, e.typ, a.pos))
+        }
         e
     }
 
-    if (method.isStatic) StaticCall(method, as)(method.returnType)
-    else MemberCall(receiver.getOrElse(This()), method, as)(method.returnType)
+    if (method.isStatic) {
+      StaticCall(method, as)(method.returnType)
+    } else {
+      MemberCall(receiver.getOrElse(This()), method, as)(method.returnType)
+    }
   }
 
   private def typeLValue(expr: Syn.LValue)(implicit ctx: ScopeContext): LValue = {
@@ -369,16 +348,18 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
             case v: LocalVarSymbol => LocalVar(v)(v.typ)
             case v: MemberVarSymbol =>
               if (ctx.currentMethod.isStatic) // member vars cannot be accessed in a static method
+              {
                 issue(new RefNonStaticError(id, ctx.currentMethod.name, expr.pos))
+              }
               MemberVar(This(), v)(v.typ)
             case _ => issue(new UndeclVarError(id, expr.pos)); err
           }
           case None => issue(new UndeclVarError(id, expr.pos)); err
         }
 
-      case Syn.VarSel(Some(Syn.VarSel(None, id)), f) if ctx.containsClass(id) =>
+      case Syn.VarSel(Some(Syn.VarSel(None, id)), f) if ctx.global.contains(id) =>
         // special case like MyClass.foo: report error cannot access field 'foo' from 'class : MyClass'
-        issue(new NotClassFieldError(f, ctx.getClass(id).typ, expr.pos))
+        issue(new NotClassFieldError(f, ctx.global(id).typ, expr.pos))
         err
 
       case Syn.VarSel(Some(receiver), id) =>
@@ -386,11 +367,13 @@ class Typer extends Phase[Tree, Tree]("typer") with Util {
         r.typ match {
           case NoType => err
           case t @ ClassType(c, _) =>
-            ctx.getClass(c).scope.lookup(id) match {
+            ctx.global(c).scope.lookup(id) match {
               case Some(sym) => sym match {
                 case v: MemberVarSymbol =>
                   if (!(ctx.currentClass.typ <= t)) // member vars are protected
+                  {
                     issue(new FieldNotAccessError(id, t, expr.pos))
+                  }
                   MemberVar(r, v)(v.typ)
                 case _ => issue(new FieldNotFoundError(id, t, expr.pos)); err
               }

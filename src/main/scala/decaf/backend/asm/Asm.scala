@@ -18,8 +18,15 @@ import decaf.util.Conversions._
   * @param emitter  helper assembly code emitter
   * @param regAlloc register allocator
   */
-class Asm(val emitter: AsmEmitter, val regAlloc: RegAlloc) extends Phase[TacProg, String]("asm: " + emitter) {
+class Asm(val emitter: AsmEmitter, val regAlloc: RegAlloc)(implicit config: Config)
+  extends Phase[TacProg, String]("asm: " + emitter, config) {
 
+  /**
+    * Transformer entry.
+    *
+    * @param prog a TAC program
+    * @return a string representing the emitted assembly code
+    */
   override def transform(prog: TacProg): String = {
     Log.info("phase: asm")
     val analyzer = new LivenessAnalyzer[PseudoInstr]
@@ -42,7 +49,12 @@ class Asm(val emitter: AsmEmitter, val regAlloc: RegAlloc) extends Phase[TacProg
     emitter.emitEnd()
   }
 
-  override def onSucceed(code: String)(implicit config: Config): Unit = {
+  /**
+    * After emitting the assembly code, output it to file.
+    *
+    * @param code assembly code
+    */
+  override def onSucceed(code: String): Unit = {
     if (config.target.equals(Config.Target.PA5)) {
       val path = config.dstDir / config.sourceBaseName + ".s"
       val printer = new PrintWriter(path)
