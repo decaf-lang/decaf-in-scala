@@ -2,7 +2,7 @@ name := "decaf-in-scala"
 
 version := "0.1"
 
-scalaVersion := "2.13.0"
+scalaVersion := "2.13.1"
 
 // https://mvnrepository.com/artifact/org.scala-lang/scala-reflect
 libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.13.1"
@@ -33,3 +33,5 @@ assemblyOutputPath in assembly := file("target/decaf.jar")
 
 javacOptions in Compile += "--enable-preview"
 javacOptions in Compile ++= Seq("-source", "12")
+javaOptions += "--enable-preview"
+fork in run := true
