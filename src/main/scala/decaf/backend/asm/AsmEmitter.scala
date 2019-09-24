@@ -22,7 +22,7 @@ abstract class AsmEmitter(val platformName: String, val allocatableRegs: Array[R
 
   /**
     * Instruction selection for a TAC function.
-    * <p>
+    *
     * Since no register allocation is done, the generated instructions may still contain pseudo registers (temps).
     *
     * @param func TAC function

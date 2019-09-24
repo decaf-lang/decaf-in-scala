@@ -4,6 +4,11 @@ import decaf.lowlevel.instr.{PseudoInstr, Temp}
 
 import scala.collection.mutable
 
+/**
+  * Perform liveness analysis.
+  *
+  * @tparam I type of instructions
+  */
 class LivenessAnalyzer[I <: PseudoInstr] extends Function[CFG[I], Unit] {
 
   override def apply(graph: CFG[I]): Unit = {
@@ -37,17 +42,18 @@ class LivenessAnalyzer[I <: PseudoInstr] extends Function[CFG[I], Unit] {
   }
 
   /**
-    * Compute the {@code def} and {@code liveUse} set for basic block {@code bb}.
-    * <p>
+    * Compute the `def and `liveUse` set for basic block `bb`.
+    *
     * Recall the definition:
-    * - {@code def}: set of all variables (i.e. temps) that are assigned to a value. Thus, we simply union all the
+    *
+    *    - `def`: set of all variables (i.e. temps) that are assigned to a value. Thus, we simply union all the
     * written temps of every instruction.
-    * - {@code liveUse}: set of all variables (i.e. temps) that are used before they are assigned to a value in this
+    *    - `liveUse`: set of all variables (i.e. temps) that are used before they are assigned to a value in this
     * basic block. Note this is NOT simply equal to the union set all read temps, but only those are not yet
     * assigned/reassigned.
     *
     * @param bb basic block
-    */
+    **/
   private def computeDefAndLiveUseFor(bb: BasicBlock[I]): Unit = {
     bb.`def` = new mutable.TreeSet[Temp]
     bb.liveUse = new mutable.TreeSet[Temp]
@@ -65,12 +71,13 @@ class LivenessAnalyzer[I <: PseudoInstr] extends Function[CFG[I], Unit] {
   /**
     * Perform liveness analysis for every single location in a basic block, so that we know at each program location,
     * which variables stay alive.
-    * <p>
+    *
     * Idea: realizing that every location loc can be regarded as a "mini" basic block -- a block containing that
     * instruction solely, then the data flow equations also hold, and the situation becomes much simpler:
-    * - loc.liveOut = loc.next.liveIn
-    * - loc.def is simply the set of written temps
-    * - loc.liveUse is simply the set of read temps, since it is impossible to read and write a same temp
+    *
+    *     - `loc.liveOut = loc.next.liveIn`
+    *     - `loc.def` is simply the set of written temps
+    *     - `loc.liveUse` is simply the set of read temps, since it is impossible to read and write a same temp
     * simultaneously
     * So you see, to back propagate every location solves the problem.
     *

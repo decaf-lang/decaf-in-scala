@@ -9,7 +9,6 @@ import scala.util.Random
 
 /**
   * Brute force greedy register allocation algorithm.
-  * <p>
   * To make our life easier, don't consider any special registers that may be used during call.
   */
 final class BruteRegAlloc(emitter: AsmEmitter) extends RegAlloc(emitter) {
@@ -32,6 +31,7 @@ final class BruteRegAlloc(emitter: AsmEmitter) extends RegAlloc(emitter) {
     val used = new mutable.TreeSet[Reg]
   }
 
+  /** Bind a temp with a register. */
   private def bind(temp: Temp, reg: Reg)(implicit ctx: Context): Unit = {
     ctx.used += reg
     ctx.occupied += reg
@@ -40,6 +40,7 @@ final class BruteRegAlloc(emitter: AsmEmitter) extends RegAlloc(emitter) {
     ctx.tempOf(reg) = temp
   }
 
+  /** Unbind a temp with its register. */
   private def unbind(temp: Temp)(implicit ctx: Context): Unit = {
     if (ctx.regOf.contains(temp)) {
       ctx.occupied.remove(ctx.regOf(temp))
@@ -49,24 +50,21 @@ final class BruteRegAlloc(emitter: AsmEmitter) extends RegAlloc(emitter) {
 
   /**
     * Main algorithm of local register allocation à la brute-force. Basic idea:
-    * <ul>
-    * <li>Allocation is preformed block-by-block.</li>
-    * <li>Assume that every allocatable register is unoccupied before entering every basic block.</li>
-    * <li>For every read (src) and written (dst) temp {@code t} in every pseudo instruction, attempt the following
-    * in order:</li>
-    * <li><ol>
-    * <li>{@code t} is already bound to a register: keep on using it.</li>
-    * <li>If there exists an available (unoccupied, or the occupied temp is no longer alive) register,
-    * then bind to it.</li>
-    * <li>Arbitrarily pick a general register, spill its value to stack, and then bind to it.</li>
-    * </ol></li>
-    * </ul>
-    * <p>
-    * The output assembly code is maintained by {@code emitter}.
+    *
+    *   - Allocation is preformed block-by-block.
+    *   - Assume that every allocatable register is unoccupied before entering every basic block.
+    *   - For every read (src) and written (dst) temp `t` in every pseudo instruction, attempt the following in order:
+    *
+    *       1. `t` is already bound to a register: keep on using it.
+    *       1. If there exists an available (unoccupied, or the occupied temp is no longer alive) register,
+    * then bind to it.
+    *       1. Arbitrarily pick a general register, spill its value to stack, and then bind to it.</li>
+    *
+    * The output assembly code is maintained by `ctx.emitter`.
     *
     * @param bb  the basic block which the algorithm performs on
     * @param ctx context
-    * @see #allocRegFor
+    * @see [[allocRegFor]]
     */
   private def localAlloc(bb: BasicBlock[PseudoInstr])(implicit ctx: Context): Unit = {
     ctx.regOf.clear()

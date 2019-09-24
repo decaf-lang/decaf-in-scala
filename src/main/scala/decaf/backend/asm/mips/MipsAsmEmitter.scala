@@ -15,7 +15,7 @@ import scala.collection.mutable
   */
 final class MipsAsmEmitter extends AsmEmitter("mips", Mips.allocatableRegs, Mips.callerSaved) {
 
-  override def emitVTable(vtbl: VTable): Unit = { // vtable begin
+  override def emitVTable(vtbl: VTable): Unit = {
     printer.println(".data")
     printer.println(".align 2")
     printer.printLabel(vtbl.label, "virtual table for " + vtbl.className)
@@ -32,7 +32,6 @@ final class MipsAsmEmitter extends AsmEmitter("mips", Mips.allocatableRegs, Mips
       printer.println(".word %s    # member method", entry.name)
     }
     printer.println()
-    // vtable end
   }
 
   override def selectInstr(func: TacFunc): (List[PseudoInstr], SubroutineInfo) = {
@@ -49,13 +48,13 @@ final class MipsAsmEmitter extends AsmEmitter("mips", Mips.allocatableRegs, Mips
   override def emitSubroutine(info: SubroutineInfo) = new MipsSubroutineEmitter(this, info)
 
   override def emitEnd(): String = {
-    if (!usedIntrinsics.isEmpty) {
+    if (usedIntrinsics.nonEmpty) {
       printer.println("# start of intrinsics")
       if (usedIntrinsics.contains(Intrinsic.READ_LINE.entry)) loadReadLine()
       if (usedIntrinsics.contains(Intrinsic.STRING_EQUAL.entry)) loadStringEqual()
       if (usedIntrinsics.contains(Intrinsic.PRINT_BOOL.entry)) loadPrintBool()
       printer.println("# end of intrinsics")
-      printer.println
+      printer.println()
     }
     printer.println("# start of constant strings")
     printer.println(".data")
