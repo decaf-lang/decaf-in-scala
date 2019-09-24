@@ -4,14 +4,34 @@ import decaf.frontend.annot._
 import decaf.frontend.tree.TreeNode
 import org.objectweb.asm.{Label, MethodVisitor, Opcodes, Type => ASMType}
 
+/**
+  * Utilities for emitting JVM bytecode.
+  */
 trait Util {
 
+  /**
+    * Internal name of Java's super class -- the well-known `java.lang.Object`.
+    */
   val JAVA_SUPER_INTERNAL_NAME = ASMType.getInternalName(classOf[java.lang.Object])
+
+  /**
+    * Default name of constructors.
+    */
   val CONSTRUCTOR_NAME = "<init>"
+
+  /**
+    * Type descriptor of constructors.
+    */
   val CONSTRUCTOR_DESC = ASMType.getMethodDescriptor(ASMType.VOID_TYPE)
+
+  /**
+    * Type descriptor of main method.
+    */
   val MAIN_DESCRIPTOR: String = "([Ljava/lang/String;)V"
 
   /**
+    * Emit bytecode for if-then-else branching. The boolean value of condition shall now be on the stack top.
+    * Pseudo code:
     * {{{
     *     if != 0 goto true
     *     falseBranch
@@ -20,6 +40,10 @@ trait Util {
     *     trueBranch
     *   exit:
     * }}}
+    *
+    * @param trueBranch  code (to be generated) of the true branch
+    * @param falseBranch code (to be generated) of the true branch
+    * @param mv          method visitor
     */
   def ifThenElse(trueBranch: => Unit, falseBranch: => Unit)(implicit mv: MethodVisitor): Unit = {
     val trueLabel = new Label
@@ -34,6 +58,8 @@ trait Util {
   }
 
   /**
+    * Emit bytecode for while-loop.
+    * Pseudo code:
     * {{{
     *   enter:
     *     cond
@@ -43,9 +69,10 @@ trait Util {
     *   exit:
     * }}}
     *
-    * @param body
-    * @param exit
-    * @param mv
+    * @param cond code (to be generated) for evaluating the condition
+    * @param body code (to be generated) of the loop body
+    * @param exit label of loop exit
+    * @param mv   method visitor
     */
   def loop(cond: => Unit, exit: Label)(body: => Unit)(implicit mv: MethodVisitor): Unit = {
     val enter = new Label
@@ -114,6 +141,7 @@ trait Util {
       ASMType.getMethodDescriptor(system_out.getDeclaredMethod("print", string)), false)
   }
 
+  /** Translate a Decaf type to JVM assembly type. */
   def toASMType(typ: Type): ASMType = typ match {
     case IntType => ASMType.INT_TYPE
     case BoolType => ASMType.BOOLEAN_TYPE
@@ -125,7 +153,7 @@ trait Util {
   }
 
   /**
-    * Get the ASM internal name of a class symbol.
+    * Get the internal name of a class symbol.
     *
     * @param clazz the class symbol
     * @return its internal name
@@ -133,7 +161,7 @@ trait Util {
   def internalName(clazz: ClassSymbol): String = toASMType(clazz.typ).getInternalName
 
   /**
-    * Get the JVM (type) descriptor of a field symbol.
+    * Get the (type) descriptor of a field symbol.
     * See https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.3 for descriptor syntax.
     *
     * @param field the field symbol, i.e. member var/method

@@ -243,8 +243,8 @@ class Typer(implicit config: Config) extends Phase[Tree, Tree]("typer", config) 
       case Syn.NewArray(elemType, length) =>
         val t = typeTypeLit(elemType)
         val l = typeExpr(length)
-        if (t.typ.isVoidType) issue(new BadArrElementError(elemType.pos)) // TODO: err
-        if (l.typ !== IntType) issue(new BadNewArrayLength(length.pos)) // TODO: if no error
+        if (t.typ.isVoidType) issue(new BadArrElementError(elemType.pos))
+        if (l.typ !== IntType) issue(new BadNewArrayLength(length.pos))
         NewArray(t, l)(ArrayType(t.typ)) // make a fair guess
 
       case Syn.NewClass(id) =>

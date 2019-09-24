@@ -21,6 +21,10 @@ project/plugins/project/
 # Tmp files
 *.tac
 *.s
+*.jar
 TestCases/
 src/main/antlr4/.antlr/
 
+# No MS docs
+*.doc
+*.docx
