@@ -73,8 +73,8 @@ object OptParser extends OptionParser[Config]("decaf") {
     .text("also dump log to a file")
     .action { case (f, config) => config.copy(logFile = f) }
     .validate { f =>
-      if (!f.exists) {
-        Left("file not exist: " + f)
+      if (f.getParentFile != null && !f.getParentFile.exists) {
+        Left("parent directory not exist: " + f.getParentFile)
       } else {
         Right()
       }
