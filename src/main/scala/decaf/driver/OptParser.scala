@@ -19,10 +19,10 @@ object OptParser extends OptionParser[Config]("decaf") {
     .text("input Decaf source")
     .action { case (f, config) => config.copy(source = f) }
     .validate { f =>
-      if (!f.isFile) {
-        Left("not a file")
-      } else if (!f.exists) {
-        Left("not exist")
+      if (!f.exists) {
+        Left("not exist: " + f)
+      } else if (!f.isFile) {
+        Left("not a file: " + f)
       } else {
         Right()
       }
@@ -33,10 +33,8 @@ object OptParser extends OptionParser[Config]("decaf") {
     .text("output file for result, available except PA5 (default stdout)")
     .action { case (o, config) => config.copy(output = new FileOutputStream(o)) }
     .validate { f =>
-      if (!f.isFile) {
-        Left("not a file")
-      } else if (!f.getParentFile.exists) {
-        Left("directory not exist")
+      if (f.getParentFile != null && !f.getParentFile.exists) {
+        Left("parent directory not exist: " + f.getParentFile)
       } else {
         Right()
       }
@@ -47,10 +45,10 @@ object OptParser extends OptionParser[Config]("decaf") {
     .text("output directory for low-level code, available >= PA3 (default .)")
     .action { case (d, config) => config.copy(dstDir = d) }
     .validate { d =>
-      if (!d.isDirectory) {
-        Left("not a directory")
-      } else if (!d.exists) {
-        Left("not exist")
+      if (!d.exists) {
+        Left("not exist: " + d)
+      } else if (!d.isDirectory) {
+        Left("not a directory: " + d)
       } else {
         Right()
       }
@@ -74,6 +72,13 @@ object OptParser extends OptionParser[Config]("decaf") {
     .valueName("file")
     .text("also dump log to a file")
     .action { case (f, config) => config.copy(logFile = f) }
+    .validate { f =>
+      if (f.getParentFile != null && !f.getParentFile.exists) {
+        Left("parent directory not exist: " + f.getParentFile)
+      } else {
+        Right()
+      }
+    }
 
   help('h', "help")
     .text("prints this usage text\n")
