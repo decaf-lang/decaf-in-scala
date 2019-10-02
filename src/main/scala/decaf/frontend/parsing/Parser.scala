@@ -61,7 +61,7 @@ class Parser(implicit config: Config) extends Phase[InputStream, Tree]("parser",
     */
   override def transform(in: InputStream): Tree = {
     val stream = CharStreams.fromStream(in)
-    val lexer = new decaf.frontend.parsing.Lexer(stream)
+    val lexer = new decaf.frontend.parsing.Lexer(stream, this)
     val tokens = new CommonTokenStream(lexer)
     val parser = new DecafParser(tokens)
     parser.addErrorListener(ErrorListener)
@@ -98,7 +98,7 @@ class Parser(implicit config: Config) extends Phase[InputStream, Tree]("parser",
 
     override def syntaxError(recognizer: Recognizer[_, _], offendingSymbol: Any, lineNumber: Int,
                              charPositionInLine: Int, msg: String, e: RecognitionException): Unit = {
-      issue(new SyntaxError(msg, new Pos(lineNumber, charPositionInLine + 1)))
+      throw new SyntaxError(msg, new Pos(lineNumber, charPositionInLine + 1))
     }
   }
 
@@ -108,20 +108,20 @@ class Parser(implicit config: Config) extends Phase[InputStream, Tree]("parser",
 
   object TopLevelVisitor extends DecafParserBaseVisitor[TopLevel] {
 
-    override def visitTopLevel(ctx: DecafParser.TopLevelContext): TopLevel = positioned(ctx) {
+    override def visitTopLevel(ctx: DecafParser.TopLevelContext): TopLevel = {
       val classes = ctx.classDef.map(_.accept(ClassDefVisitor))
-      TopLevel(classes)
+      TopLevel(classes).setPos(classes.head.pos)
     }
   }
 
   object ClassDefVisitor extends DecafParserBaseVisitor[ClassDef] {
 
-    override def visitClassDef(ctx: DecafParser.ClassDefContext): ClassDef = positioned(ctx) {
+    override def visitClassDef(ctx: DecafParser.ClassDefContext): ClassDef = {
       val id = ctx.id.accept(IdVisitor)
       // NOTE: if an optional symbol (like extendsClause) is undefined, its corresponding field is null.
       val parent = if (ctx.extendsClause != null) Some(ctx.extendsClause.id.accept(IdVisitor)) else None
       val fields = ctx.field.map(_.accept(FieldVisitor))
-      ClassDef(id, parent, fields)
+      ClassDef(id, parent, fields).setPos(getPos(ctx.CLASS.getSymbol))
     }
   }
 
@@ -275,43 +275,15 @@ class Parser(implicit config: Config) extends Phase[InputStream, Tree]("parser",
     override def visitLiteral(ctx: DecafParser.LiteralContext): Expr = ctx.lit.accept(this)
 
     override def visitIntLit(ctx: DecafParser.IntLitContext): Expr = positioned(ctx) {
-      val literal = ctx.getText
-      var value = -1
-      try {
-        value = literal.toInt
-      } catch {
-        case _: NumberFormatException => // not a valid 32-bit integer
-          issue(new IntTooLargeError(literal, getPos(ctx.INT_LIT.getSymbol)))
-      }
-
-      IntLit(value)
+      IntLit(ctx.getText.toInt)
     }
 
     override def visitBoolLit(ctx: DecafParser.BoolLitContext): Expr = positioned(ctx) {
       BoolLit(ctx.getText.toBoolean)
     }
 
-    override def visitStringLit(ctx: DecafParser.StringLitContext): Expr = {
-      val buffer = new StringBuilder
-      val startPos = getPos(ctx.OPEN_STRING.getSymbol)
-      buffer += '"'
-      ctx.stringChar.foreach { node =>
-        if (node.ERROR_NEWLINE != null) { // handle new line in string
-          issue(new NewlineInStrError(buffer.toString, getPos(node.ERROR_NEWLINE.getSymbol)))
-        }
-        if (node.BAD_ESC != null) { // handle bad escape character
-          issue(new BadEscCharError(getPos(node.BAD_ESC.getSymbol)))
-        }
-        buffer ++= node.getText
-      }
-
-      if (ctx.UNTERM_STRING != null) { // handle unterminated string
-        issue(new UntermStrError(buffer.toString, startPos))
-      }
-
-      buffer += '"'
-      StringLit(buffer.toString).setPos(startPos)
-    }
+    override def visitStringLit(ctx: DecafParser.StringLitContext): Expr =
+      StringLit(ctx.CLOSE_STRING.getText).setPos(getPos(ctx.OPEN_STRING.getSymbol))
 
     override def visitNullLit(ctx: DecafParser.NullLitContext): Expr = positioned(ctx) { NullLit() }
 
