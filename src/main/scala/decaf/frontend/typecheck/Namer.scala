@@ -225,7 +225,9 @@ class Namer(implicit config: Config) extends Phase[Tree, Typed.Tree]("namer", co
     */
   def resolveField(field: Field)(implicit ctx: ScopeContext): Option[Typed.Field] = {
     val resolved = ctx.findConflict(field.name) match {
-      case Some(earlier) =>
+      case Some(earlier) if earlier.domain == ctx.currentScope => // always conflict
+        issue(new DeclConflictError(field.name, earlier.pos, field.pos)); None
+      case Some(earlier) => // maybe override?
         (earlier, field) match {
           case (_: MemberVarSymbol, _: VarSymbol) =>
             issue(new OverridingVarError(field.name, field.pos))
@@ -270,19 +272,16 @@ class Namer(implicit config: Config) extends Phase[Tree, Typed.Tree]("namer", co
             }
           case m @ MethodDef(mod, id, returnType, params, body) =>
             val rt = typeTypeLit(returnType)
-            rt.typ match {
-              case NoType => None
-              case retType =>
-                val formalScope = new FormalScope
-                val formalCtx: ScopeContext = ctx.open(formalScope)
-                if (!m.isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
-                val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
-                val funType = FunType(typedParams.map(_.typeLit.typ), retType)
-                val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass)
-                ctx.declare(symbol)
-                val block = resolveBlock(body)(formalCtx)
-                Some(Typed.MethodDef(mod, id, rt, typedParams, block)(symbol))
-            }
+            val retType = rt.typ
+            val formalScope = new FormalScope
+            val formalCtx: ScopeContext = ctx.open(formalScope)
+            if (!m.isStatic) formalCtx.declare(LocalVarSymbol.thisVar(ctx.currentClass.typ, id.pos))
+            val typedParams = params.flatMap { resolveLocalVarDef(_)(formalCtx, true) }
+            val funType = FunType(typedParams.map(_.typeLit.typ), retType)
+            val symbol = new MethodSymbol(m, funType, formalScope, ctx.currentClass)
+            ctx.declare(symbol)
+            val block = resolveBlock(body)(formalCtx)
+            Some(Typed.MethodDef(mod, id, rt, typedParams, block)(symbol))
         }
     }
     resolved.map(_.setPos(field.pos))
@@ -342,7 +341,15 @@ class Namer(implicit config: Config) extends Phase[Tree, Typed.Tree]("namer", co
     ctx.findConflict(v.name) match {
       case Some(earlier) =>
         issue(new DeclConflictError(v.name, earlier.pos, v.pos))
-        None
+        // NOTE: when type check a method, even though this parameter is conflicting, we still need to know what is the
+        // type. Suppose this type is ok, we can still construct the full method type signature, to the user's
+        // expectation.
+        if (isParam) {
+          val typedTypeLit = typeTypeLit(v.typeLit)
+          Some(Typed.LocalVarDef(typedTypeLit, v.id, v.init, v.assignPos)(null))
+        } else {
+          None
+        }
       case None =>
         val typedTypeLit = typeTypeLit(v.typeLit)
         typedTypeLit.typ match {
