@@ -83,16 +83,16 @@ lValue
 expr
     : lit                                           # literal
     | THIS                                          # this
-    | '(' expr ')'                                  # paren
-    | '(' CLASS id ')' expr                         # classCast
     | READ_INTEGER '(' ')'                          # readInt
     | READ_LINE '(' ')'                             # readLine
     | NEW id '(' ')'                                # newClass
     | NEW elemType=type '[' length=expr ']'         # newArray
     | INSTANCEOF '(' expr ',' id ')'                # classTest
+    | '(' expr ')'                                  # paren
     | varSelOrCall                                  # singlePath
     | expr '.' varSelOrCall                         # path
     | array=expr '[' index=expr ']'                 # indexSel
+    | '(' CLASS id ')' expr                         # classCast
     | prefix=('-'|'!') expr                         # unary
     | lhs=expr infix=('*'|'/'|'%') rhs=expr         # binary
     | lhs=expr infix=('+'|'-') rhs=expr             # binary
