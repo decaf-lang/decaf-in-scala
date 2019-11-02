@@ -198,6 +198,7 @@ case class FunType(args: List[Type], ret: Type) extends Type {
   override def toString: String = {
     val ps = args match {
       case Nil => "()"
+      case (t @ FunType(_, _)) :: Nil => s"($t)"
       case t :: Nil => t.toString
       case ts => s"(${ ts.mkString(", ") })"
     }
