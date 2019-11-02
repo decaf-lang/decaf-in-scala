@@ -229,7 +229,7 @@ class Namer(implicit config: Config) extends Phase[Tree, Typed.Tree]("namer", co
         issue(new DeclConflictError(field.name, earlier.pos, field.pos)); None
       case Some(earlier) => // maybe override?
         (earlier, field) match {
-          case (_: MemberVarSymbol, _: VarSymbol) =>
+          case (_: MemberVarSymbol, _: VarDef) =>
             issue(new OverridingVarError(field.name, field.pos))
             None
           case (suspect: MethodSymbol, m @ MethodDef(mod, id, returnType, params, body))
