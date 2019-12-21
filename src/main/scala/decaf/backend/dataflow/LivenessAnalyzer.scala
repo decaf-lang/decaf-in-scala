@@ -58,13 +58,13 @@ class LivenessAnalyzer[I <: PseudoInstr] extends Function[CFG[I], Unit] {
     bb.`def` = new mutable.TreeSet[Temp]
     bb.liveUse = new mutable.TreeSet[Temp]
     for (loc <- bb) {
-      loc.instr.getWritten.forEach(bb.`def`.add)
       loc.instr.getRead.forEach { t =>
         if (!bb.`def`.contains(t)) // used before being assigned to a value
         {
           bb.liveUse.add(t)
         }
       }
+      loc.instr.getWritten.forEach(bb.`def`.add)
     }
   }
 

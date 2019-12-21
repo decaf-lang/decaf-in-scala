@@ -37,7 +37,8 @@ final class MipsAsmEmitter extends AsmEmitter("mips", Mips.allocatableRegs, Mips
   override def selectInstr(func: TacFunc): (List[PseudoInstr], SubroutineInfo) = {
     val selector = new MipsInstrSelector(func.entry)
     func.getInstrSeq.forEach(_.accept(selector))
-    val info = new SubroutineInfo(func.entry, func.numArgs, selector.hasCall, selector.maxArgs * 4)
+    val info = new SubroutineInfo(func.entry, func.numArgs, selector.hasCall,
+      Math.max(func.numArgs, selector.maxArgs) * 4)
     (selector.seq.toList, info)
   }
 

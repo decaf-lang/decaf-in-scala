@@ -13,12 +13,12 @@ import scala.collection.mutable
   * Recall the stack frame of a MIPS subroutine looks this:
   * {{{
   * previous stack frame ...
-  * SP + 4n + 36 + : local data m - 1
+  * SP + 4n + 40 + : local data m - 1
   * 4(m - 1)
   * ...
-  * SP + 4n + 36   : local data 0
-  * SP + 4n + 32   : ($RA)
-  * SP + 4n + 28   : ($S7)
+  * SP + 4n + 40   : local data 0
+  * SP + 4n + 36   : ($RA)
+  * SP + 4n + 32   : ($S8)
   * ...
   * SP + 4n + 0    : ($S0)
   * SP + 4(n - 1)  : arg n - 1
@@ -74,7 +74,7 @@ class MipsSubroutineEmitter private[mips](emitter: MipsAsmEmitter, info: Subrout
     printer.printComment("start of prologue")
     printer.printInstr(new Mips.SPAdd(-nextLocalOffset), "push stack frame")
     if (info.hasCalls) {
-      printer.printInstr(new Mips.NativeStoreWord(Mips.RA, Mips.SP, info.argsSize + 32), "save the return address")
+      printer.printInstr(new Mips.NativeStoreWord(Mips.RA, Mips.SP, info.argsSize + 36), "save the return address")
     }
     for {
       (reg, i) <- Mips.calleeSaved.zipWithIndex
@@ -103,7 +103,7 @@ class MipsSubroutineEmitter private[mips](emitter: MipsAsmEmitter, info: Subrout
         "restore value of $S" + i)
     }
     if (info.hasCalls) {
-      printer.printInstr(new Mips.NativeLoadWord(Mips.RA, Mips.SP, info.argsSize + 32), "restore the return address")
+      printer.printInstr(new Mips.NativeLoadWord(Mips.RA, Mips.SP, info.argsSize + 36), "restore the return address")
     }
     printer.printInstr(new Mips.SPAdd(nextLocalOffset), "pop stack frame")
     printer.printComment("end of epilogue")
@@ -114,7 +114,7 @@ class MipsSubroutineEmitter private[mips](emitter: MipsAsmEmitter, info: Subrout
   }
 
   private val buf = new mutable.ArrayBuffer[NativeInstr]
-  private var nextLocalOffset = info.argsSize + 36
+  private var nextLocalOffset = info.argsSize + 40
   private val offsets = new mutable.TreeMap[Temp, Integer]
 
   printer.printLabel(info.funcLabel, "function " + info.funcLabel.prettyString)
