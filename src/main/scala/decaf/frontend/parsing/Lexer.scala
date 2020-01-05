@@ -36,7 +36,13 @@ class Lexer(in: CharStream, errorIssuer: ErrorIssuer) extends DecafLexer(in) {
       val token = super.emit
       var literal = "0"
       try {
-        literal = token.getText.toInt.toString
+        val text = token.getText
+        literal =
+          if (text.startsWith("0x"))
+            Integer.parseInt(text.substring(2), 16).toString
+          else if (text.startsWith("0") && text.size > 1)
+            Integer.parseInt(text.substring(1), 16).toString
+          else text.toInt.toString
       } catch {
         case _: NumberFormatException => // not a valid 32-bit integer
           errorIssuer.issue(new IntTooLargeError(token.getText, getPos(token)))
