@@ -301,12 +301,8 @@ public class Mips {
 
         private boolean isArgOrLocal; // [true] represents argument, and [false] represents local data.
 
-        public void backfill(int maxArgsNum, int frameLength) {
-            if (isArgOrLocal) {
-                offset += frameLength;
-            } else {
-                offset += Math.max(maxArgsNum - 4, 0) * 4;
-            }
+        public void backfill(int maxArgsSize, int frameLength) {
+            offset += isArgOrLocal ? frameLength : maxArgsSize;
         }
 
         private int offset;
@@ -330,14 +326,14 @@ public class Mips {
             this.isArgOrLocal = isArgOrLocal;
         }
 
-        private boolean isArgOrLocal;
+        private boolean isArgOrLocal; // [true] represents argument, and [false] represents local data.
 
-        public void backfill(int maxArgsNum, int frameLength) {
-            if (isArgOrLocal) {
-                offset += frameLength;
-            } else {
-                offset += Math.max(maxArgsNum - 4, 0) * 4;
-            }
+        public void backfill(int maxArgsSize, int frameLength) {
+            offset += isArgOrLocal ? frameLength : maxArgsSize;
+
+            // System.out.println("After backfill(maxArgsSize = " + maxArgsSize + ",
+            // frameLength = " + frameLength
+            // + "), offset = " + offset + "\n");
         }
 
         private int offset;

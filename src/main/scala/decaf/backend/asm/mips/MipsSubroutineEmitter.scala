@@ -114,8 +114,8 @@ class MipsSubroutineEmitter private[mips](emitter: MipsAsmEmitter, info: Subrout
     buf.foreach(
         instr => {
             instr match {
-                case nlw: Mips.NativeLoadWord => nlw.backfill(maxArgsNum, frameLength);
-                case nsw: Mips.NativeStoreWord => nsw.backfill(maxArgsNum, frameLength);
+                case nlw: Mips.NativeLoadWord => nlw.backfill(maxArgsSize, frameLength);
+                case nsw: Mips.NativeStoreWord => nsw.backfill(maxArgsSize, frameLength);
                 case _ =>
             }
             printer.printInstr(instr)
