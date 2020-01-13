@@ -47,19 +47,13 @@ public class Mips {
     public static final Reg S8 = new Reg(30, "$s8"); // also called $fp, but used as an additional saved register
     public static final Reg RA = new Reg(31, "$ra"); // return address
 
-    public static final Reg[] callerSaved = new Reg[]{
-            V1, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9
-    };
+    public static final Reg[] callerSaved = new Reg[] { V1, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9 };
 
-    public static final Reg[] calleeSaved = new Reg[]{
-            S0, S1, S2, S3, S4, S5, S6, S7, S8
-    };
+    public static final Reg[] calleeSaved = new Reg[] { S0, S1, S2, S3, S4, S5, S6, S7, S8 };
 
     public static final Reg[] allocatableRegs = ArrayUtils.addAll(callerSaved, calleeSaved);
 
-    public static final Reg[] argRegs = new Reg[]{
-            A0, A1, A2, A3
-    };
+    public static final Reg[] argRegs = new Reg[] { A0, A1, A2, A3 };
 
     // Instructions
 
@@ -81,7 +75,7 @@ public class Mips {
     public static class Move extends PseudoInstr {
 
         public Move(Temp dst, Temp src) {
-            super(new Temp[]{dst}, new Temp[]{src});
+            super(new Temp[] { dst }, new Temp[] { src });
         }
 
         @Override
@@ -97,7 +91,7 @@ public class Mips {
     public static class Unary extends PseudoInstr {
 
         public Unary(UnaryOp op, Temp dst, Temp src) {
-            super(new Temp[]{dst}, new Temp[]{src});
+            super(new Temp[] { dst }, new Temp[] { src });
             this.op = op.toString().toLowerCase();
         }
 
@@ -110,15 +104,13 @@ public class Mips {
     }
 
     public enum BinaryOp {
-        ADD, SUB, MUL, DIV, REM,
-        SGT, SGE, SEQ, SNE, SLE, SLT,
-        AND, OR
+        ADD, SUB, MUL, DIV, REM, SGT, SGE, SEQ, SNE, SLE, SLT, AND, OR
     }
 
     public static class Binary extends PseudoInstr {
 
         public Binary(BinaryOp op, Temp dst, Temp src0, Temp src1) {
-            super(new Temp[]{dst}, new Temp[]{src0, src1});
+            super(new Temp[] { dst }, new Temp[] { src0, src1 });
             this.op = op.toString().toLowerCase();
         }
 
@@ -137,7 +129,7 @@ public class Mips {
     public static class Branch extends PseudoInstr {
 
         public Branch(BranchOp op, Temp src, Label to) {
-            super(Kind.COND_JMP, new Temp[]{}, new Temp[]{src}, to);
+            super(Kind.COND_JMP, new Temp[] {}, new Temp[] { src }, to);
             this.op = op.toString().toLowerCase();
         }
 
@@ -152,7 +144,7 @@ public class Mips {
     public static class Jump extends PseudoInstr {
 
         public Jump(Label to) {
-            super(Kind.JMP, new Temp[]{}, new Temp[]{}, to);
+            super(Kind.JMP, new Temp[] {}, new Temp[] {}, to);
         }
 
         @Override
@@ -162,12 +154,13 @@ public class Mips {
     }
 
     /**
-     * The special jump-to-epilogue instruction {@code j epilogue} is regarded as a return statement.
+     * The special jump-to-epilogue instruction {@code j epilogue} is regarded as a
+     * return statement.
      */
     public static class JumpToEpilogue extends PseudoInstr {
 
         public JumpToEpilogue(Label label) {
-            super(Kind.RET, new Temp[]{}, new Temp[]{}, new Label(label + EPILOGUE_SUFFIX));
+            super(Kind.RET, new Temp[] {}, new Temp[] {}, new Label(label + EPILOGUE_SUFFIX));
         }
 
         @Override
@@ -179,7 +172,7 @@ public class Mips {
     public static class JumpAndLink extends PseudoInstr {
 
         public JumpAndLink(Label to) {
-            super(Kind.SEQ, new Temp[]{}, new Temp[]{}, to);
+            super(Kind.SEQ, new Temp[] {}, new Temp[] {}, to);
         }
 
         @Override
@@ -191,7 +184,7 @@ public class Mips {
     public static class JumpAndLinkReg extends PseudoInstr {
 
         public JumpAndLinkReg(Temp src) {
-            super(new Temp[]{}, new Temp[]{src});
+            super(new Temp[] {}, new Temp[] { src });
         }
 
         @Override
@@ -203,7 +196,7 @@ public class Mips {
     public static class LoadWord extends PseudoInstr {
 
         public LoadWord(Temp dst, Temp base, int offset) {
-            super(new Temp[]{dst}, new Temp[]{base});
+            super(new Temp[] { dst }, new Temp[] { base });
             this.offset = offset;
         }
 
@@ -218,7 +211,7 @@ public class Mips {
     public static class StoreWord extends PseudoInstr {
 
         public StoreWord(Temp src, Temp base, int offset) {
-            super(new Temp[]{}, new Temp[]{src, base});
+            super(new Temp[] {}, new Temp[] { src, base });
             this.offset = offset;
         }
 
@@ -233,7 +226,7 @@ public class Mips {
     public static class LoadImm extends PseudoInstr {
 
         public LoadImm(Temp dst, int value) {
-            super(new Temp[]{dst}, new Temp[]{});
+            super(new Temp[] { dst }, new Temp[] {});
             this.value = value;
         }
 
@@ -248,7 +241,7 @@ public class Mips {
     public static class LoadAddr extends PseudoInstr {
 
         public LoadAddr(Temp dst, Label label) {
-            super(Kind.SEQ, new Temp[]{dst}, new Temp[]{}, label);
+            super(Kind.SEQ, new Temp[] { dst }, new Temp[] {}, label);
         }
 
         @Override
@@ -272,7 +265,7 @@ public class Mips {
     public static class Syscall extends NativeInstr {
 
         public Syscall() {
-            super(new Reg[]{}, new Reg[]{});
+            super(new Reg[] {}, new Reg[] {});
         }
 
         @Override
@@ -284,7 +277,7 @@ public class Mips {
     public static class NativeMove extends NativeInstr {
 
         public NativeMove(Reg dst, Reg src) {
-            super(new Reg[]{dst}, new Reg[]{src});
+            super(new Reg[] { dst }, new Reg[] { src });
         }
 
         @Override
@@ -296,8 +289,24 @@ public class Mips {
     public static class NativeLoadWord extends NativeInstr {
 
         public NativeLoadWord(Reg dst, Reg base, int offset) {
-            super(new Reg[]{dst}, new Reg[]{base});
+            super(new Reg[] { dst }, new Reg[] { base });
             this.offset = offset;
+        }
+
+        public NativeLoadWord(Reg dst, Reg base, int offset, boolean isArgOrLocal) {
+            super(new Reg[] { dst }, new Reg[] { base });
+            this.offset = offset;
+            this.isArgOrLocal = isArgOrLocal;
+        }
+
+        private boolean isArgOrLocal; // [true] represents argument, and [false] represents local data.
+
+        public void backfill(int maxArgsNum, int frameLength) {
+            if (isArgOrLocal) {
+                offset += frameLength;
+            } else {
+                offset += Math.max(maxArgsNum - 4, 0) * 4;
+            }
         }
 
         private int offset;
@@ -311,8 +320,24 @@ public class Mips {
     public static class NativeStoreWord extends NativeInstr {
 
         public NativeStoreWord(Reg src, Reg base, int offset) {
-            super(new Reg[]{}, new Reg[]{src, base});
+            super(new Reg[] {}, new Reg[] { src, base });
             this.offset = offset;
+        }
+
+        public NativeStoreWord(Reg src, Reg base, int offset, boolean isArgOrLocal) {
+            super(new Reg[] {}, new Reg[] { src, base });
+            this.offset = offset;
+            this.isArgOrLocal = isArgOrLocal;
+        }
+
+        private boolean isArgOrLocal;
+
+        public void backfill(int maxArgsNum, int frameLength) {
+            if (isArgOrLocal) {
+                offset += frameLength;
+            } else {
+                offset += Math.max(maxArgsNum - 4, 0) * 4;
+            }
         }
 
         private int offset;
@@ -324,13 +349,13 @@ public class Mips {
     }
 
     /**
-     * Since the only possible usage of the {@code jr} is to return a subroutine with {@code jr $ra}.
-     * Why not simply call this "Return"?
+     * Since the only possible usage of the {@code jr} is to return a subroutine
+     * with {@code jr $ra}. Why not simply call this "Return"?
      */
     public static class NativeReturn extends NativeInstr {
 
         public NativeReturn() {
-            super(Kind.RET, new Reg[]{RA}, new Reg[]{}, null);
+            super(Kind.RET, new Reg[] { RA }, new Reg[] {}, null);
         }
 
         @Override
@@ -342,7 +367,7 @@ public class Mips {
     public static class SPAdd extends NativeInstr {
 
         public SPAdd(int offset) {
-            super(new Reg[]{SP}, new Reg[]{SP});
+            super(new Reg[] { SP }, new Reg[] { SP });
             this.offset = offset;
         }
 

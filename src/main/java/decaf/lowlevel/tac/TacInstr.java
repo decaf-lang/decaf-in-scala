@@ -106,8 +106,9 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Assignment.
+     * 
      * <pre>
-     *     dst = src
+     * dst = src
      * </pre>
      */
     public static class Assign extends TacInstr {
@@ -115,7 +116,7 @@ public abstract class TacInstr extends PseudoInstr {
         public final Temp src;
 
         public Assign(Temp dst, Temp src) {
-            super(new Temp[]{dst}, new Temp[]{src});
+            super(new Temp[] { dst }, new Temp[] { src });
             this.dst = dst;
             this.src = src;
         }
@@ -133,6 +134,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Load a virtual table.
+     * 
      * <pre>
      *     dst = VTABLE&lt;vtbl&gt;
      * </pre>
@@ -142,7 +144,7 @@ public abstract class TacInstr extends PseudoInstr {
         public final VTable vtbl;
 
         public LoadVTbl(Temp dst, VTable vtbl) {
-            super(new Temp[]{dst}, new Temp[]{});
+            super(new Temp[] { dst }, new Temp[] {});
             this.dst = dst;
             this.vtbl = vtbl;
         }
@@ -160,8 +162,9 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Load a 32-bit signed integer.
+     * 
      * <pre>
-     *     dst = value
+     * dst = value
      * </pre>
      */
     public static class LoadImm4 extends TacInstr {
@@ -169,7 +172,7 @@ public abstract class TacInstr extends PseudoInstr {
         public final int value;
 
         public LoadImm4(Temp dst, int value) {
-            super(new Temp[]{dst}, new Temp[]{});
+            super(new Temp[] { dst }, new Temp[] {});
             this.dst = dst;
             this.value = value;
         }
@@ -187,8 +190,9 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Load constant string.
+     * 
      * <pre>
-     *     dst = value
+     * dst = value
      * </pre>
      */
     public static class LoadStrConst extends TacInstr {
@@ -196,7 +200,7 @@ public abstract class TacInstr extends PseudoInstr {
         public final String value;
 
         public LoadStrConst(Temp dst, String value) {
-            super(new Temp[]{dst}, new Temp[]{});
+            super(new Temp[] { dst }, new Temp[] {});
             this.dst = dst;
             this.value = value;
         }
@@ -214,6 +218,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Unary instruction.
+     * 
      * <pre>
      *     dst = op operand
      * </pre>
@@ -228,7 +233,7 @@ public abstract class TacInstr extends PseudoInstr {
         }
 
         public Unary(Op op, Temp dst, Temp operand) {
-            super(new Temp[]{dst}, new Temp[]{operand});
+            super(new Temp[] { dst }, new Temp[] { operand });
             this.op = op;
             this.dst = dst;
             this.operand = operand;
@@ -242,8 +247,8 @@ public abstract class TacInstr extends PseudoInstr {
         @Override
         public String toString() {
             var opStr = switch (op) {
-                case NEG -> "-";
-                case LNOT -> "!";
+            case NEG -> "-";
+            case LNOT -> "!";
             };
             return String.format("%s = %s %s", dst, opStr, operand);
         }
@@ -251,6 +256,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Binary instruction.
+     * 
      * <pre>
      *     dst = (lhs op rhs)
      * </pre>
@@ -266,7 +272,7 @@ public abstract class TacInstr extends PseudoInstr {
         }
 
         public Binary(Op op, Temp dst, Temp lhs, Temp rhs) {
-            super(new Temp[]{dst}, new Temp[]{lhs, rhs});
+            super(new Temp[] { dst }, new Temp[] { lhs, rhs });
             this.op = op;
             this.dst = dst;
             this.lhs = lhs;
@@ -281,19 +287,19 @@ public abstract class TacInstr extends PseudoInstr {
         @Override
         public String toString() {
             var opStr = switch (op) {
-                case ADD -> "+";
-                case SUB -> "-";
-                case MUL -> "*";
-                case DIV -> "/";
-                case MOD -> "%";
-                case EQU -> "==";
-                case NEQ -> "!=";
-                case LES -> "<";
-                case LEQ -> "<=";
-                case GTR -> ">";
-                case GEQ -> ">=";
-                case LAND -> "&&";
-                case LOR -> "||";
+            case ADD -> "+";
+            case SUB -> "-";
+            case MUL -> "*";
+            case DIV -> "/";
+            case MOD -> "%";
+            case EQU -> "==";
+            case NEQ -> "!=";
+            case LES -> "<";
+            case LEQ -> "<=";
+            case GTR -> ">";
+            case GEQ -> ">=";
+            case LAND -> "&&";
+            case LOR -> "||";
             };
             return String.format("%s = (%s %s %s)", dst, lhs, opStr, rhs);
         }
@@ -301,6 +307,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Branch instruction.
+     * 
      * <pre>
      *     branch target
      * </pre>
@@ -309,7 +316,7 @@ public abstract class TacInstr extends PseudoInstr {
         public final Label target;
 
         public Branch(Label target) {
-            super(Kind.JMP, new Temp[]{}, new Temp[]{}, target);
+            super(Kind.JMP, new Temp[] {}, new Temp[] {}, target);
             this.target = target;
         }
 
@@ -326,6 +333,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Branch instruction.
+     * 
      * <pre>
      *     if (cond == 0) branch target
      *     if (cond != 0) branch target
@@ -341,7 +349,7 @@ public abstract class TacInstr extends PseudoInstr {
         }
 
         public CondBranch(Op op, Temp cond, Label target) {
-            super(Kind.COND_JMP, new Temp[]{}, new Temp[]{cond}, target);
+            super(Kind.COND_JMP, new Temp[] {}, new Temp[] { cond }, target);
             this.op = op;
             this.cond = cond;
             this.target = target;
@@ -355,8 +363,8 @@ public abstract class TacInstr extends PseudoInstr {
         @Override
         public String toString() {
             var opStr = switch (op) {
-                case BEQZ -> "== 0";
-                case BNEZ -> "!= 0";
+            case BEQZ -> "== 0";
+            case BNEZ -> "!= 0";
             };
             return String.format("if (%s %s) branch %s", cond, opStr, target.prettyString());
         }
@@ -364,6 +372,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Return instruction.
+     * 
      * <pre>
      *     return value?
      * </pre>
@@ -372,12 +381,12 @@ public abstract class TacInstr extends PseudoInstr {
         public final Optional<Temp> value;
 
         public Return(Temp value) {
-            super(Kind.RET, new Temp[]{}, new Temp[]{value}, null);
+            super(Kind.RET, new Temp[] {}, new Temp[] { value }, null);
             this.value = Optional.of(value);
         }
 
         public Return() {
-            super(Kind.RET, new Temp[]{}, new Temp[]{}, null);
+            super(Kind.RET, new Temp[] {}, new Temp[] {}, null);
             this.value = Optional.empty();
         }
 
@@ -397,6 +406,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Push a parameter.
+     * 
      * <pre>
      *     parm value
      * </pre>
@@ -405,7 +415,7 @@ public abstract class TacInstr extends PseudoInstr {
         public final Temp value;
 
         public Parm(Temp value) {
-            super(new Temp[]{}, new Temp[]{value});
+            super(new Temp[] {}, new Temp[] { value });
             this.value = value;
         }
 
@@ -422,6 +432,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Call by address (which is stored in a temp).
+     * 
      * <pre>
      *     {dst =}? call entry
      * </pre>
@@ -429,17 +440,20 @@ public abstract class TacInstr extends PseudoInstr {
     public static class IndirectCall extends TacInstr {
         public final Optional<Temp> dst;
         public final Temp entry;
+        public final Integer numArgs;
 
-        public IndirectCall(Temp dst, Temp entry) {
-            super(new Temp[]{dst}, new Temp[]{entry});
+        public IndirectCall(Temp dst, Temp entry, Integer numArgs) {
+            super(new Temp[] { dst }, new Temp[] { entry });
             this.dst = Optional.of(dst);
             this.entry = entry;
+            this.numArgs = numArgs;
         }
 
-        public IndirectCall(Temp entry) {
-            super(new Temp[]{}, new Temp[]{entry});
+        public IndirectCall(Temp entry, Integer numArgs) {
+            super(new Temp[] {}, new Temp[] { entry });
             this.dst = Optional.empty();
             this.entry = entry;
+            this.numArgs = numArgs;
         }
 
         @Override
@@ -458,6 +472,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Call by label.
+     * 
      * <pre>
      *     {dst =}? call entry
      * </pre>
@@ -465,29 +480,34 @@ public abstract class TacInstr extends PseudoInstr {
     public static class DirectCall extends TacInstr {
         public final Optional<Temp> dst;
         public final Label entry;
+        public final Integer numArgs;
 
-        public DirectCall(Temp dst, Label entry) {
-            super(new Temp[]{dst}, new Temp[]{});
+        public DirectCall(Temp dst, Label entry, Integer numArgs) {
+            super(new Temp[] { dst }, new Temp[] {});
             this.dst = Optional.of(dst);
             this.entry = entry;
+            this.numArgs = numArgs;
         }
 
-        public DirectCall(Label entry) {
-            super(new Temp[]{}, new Temp[]{});
+        public DirectCall(Label entry, Integer numArgs) {
+            super(new Temp[] {}, new Temp[] {});
             this.dst = Optional.empty();
             this.entry = entry;
+            this.numArgs = numArgs;
         }
 
-        public DirectCall(Temp dst, Intrinsic intrinsic) {
-            super(new Temp[]{dst}, new Temp[]{});
+        public DirectCall(Temp dst, Intrinsic intrinsic, Integer numArgs) {
+            super(new Temp[] { dst }, new Temp[] {});
             this.dst = Optional.of(dst);
             this.entry = intrinsic.entry;
+            this.numArgs = numArgs;
         }
 
-        public DirectCall(Intrinsic intrinsic) {
-            super(new Temp[]{}, new Temp[]{});
+        public DirectCall(Intrinsic intrinsic, Integer numArgs) {
+            super(new Temp[] {}, new Temp[] {});
             this.dst = Optional.empty();
             this.entry = intrinsic.entry;
+            this.numArgs = numArgs;
         }
 
         @Override
@@ -506,6 +526,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Memory access: load/store.
+     * 
      * <pre>
      *     dst = *(base + offset)
      *     *(base + offset) = dst
@@ -522,8 +543,8 @@ public abstract class TacInstr extends PseudoInstr {
         }
 
         public Memory(Op op, Temp dst, Temp base, int offset) {
-            super(op.equals(Op.LOAD) ? new Temp[]{dst} : new Temp[]{},
-                    op.equals(Op.LOAD) ? new Temp[]{base} : new Temp[]{dst, base});
+            super(op.equals(Op.LOAD) ? new Temp[] { dst } : new Temp[] {},
+                    op.equals(Op.LOAD) ? new Temp[] { base } : new Temp[] { dst, base });
             this.op = op;
             this.dst = dst;
             this.base = base;
@@ -540,14 +561,15 @@ public abstract class TacInstr extends PseudoInstr {
             var sign = offset >= 0 ? "+" : "-";
             var value = offset >= 0 ? offset : -offset;
             return switch (op) {
-                case LOAD -> String.format("%s = *(%s %s %d)", dst, base, sign, value);
-                case STORE -> String.format("*(%s %s %d) = %s", base, sign, offset, dst);
+            case LOAD -> String.format("%s = *(%s %s %d)", dst, base, sign, value);
+            case STORE -> String.format("*(%s %s %d) = %s", base, sign, offset, dst);
             };
         }
     }
 
     /**
      * Comment.
+     * 
      * <pre>
      *     memo 'msg'
      * </pre>
@@ -556,7 +578,7 @@ public abstract class TacInstr extends PseudoInstr {
         final String msg;
 
         public Memo(String msg) {
-            super(new Temp[]{}, new Temp[]{});
+            super(new Temp[] {}, new Temp[] {});
             this.msg = msg;
         }
 
@@ -573,6 +595,7 @@ public abstract class TacInstr extends PseudoInstr {
 
     /**
      * Label.
+     * 
      * <pre>
      * label:
      * </pre>
