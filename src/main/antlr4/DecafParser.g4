@@ -5,7 +5,7 @@ options { tokenVocab=DecafLexer; }
 // Classes and fields
 
 topLevel
-    : classDef*
+    : classDef* EOF
     ;
 
 classDef
