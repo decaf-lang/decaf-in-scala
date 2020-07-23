@@ -3,6 +3,7 @@ package decaf.backend.reg
 import decaf.backend.asm.{AsmEmitter, Holes, SubroutineEmitter, SubroutineInfo}
 import decaf.backend.dataflow._
 import decaf.lowlevel.instr.{PseudoInstr, Reg, Temp}
+import decaf.lowlevel.tac.TacInstr.{IndirectCall, DirectCall}
 
 import scala.collection.mutable
 import scala.util.Random
@@ -91,6 +92,12 @@ final class BruteRegAlloc(emitter: AsmEmitter) extends RegAlloc(emitter) {
 
       // For normal instructions: allocate registers for every read/written temp. Skip the already specified
       // special registers.
+      case loc if loc.instr.isInstanceOf[IndirectCall] =>
+        ctx.subEmitter.emitCall(loc.instr.asInstanceOf[IndirectCall].numArgs);
+      
+      case loc if loc.instr.isInstanceOf[DirectCall] =>
+        ctx.subEmitter.emitCall(loc.instr.asInstanceOf[DirectCall].numArgs);
+
       case loc => allocForLoc(loc)
     }
 

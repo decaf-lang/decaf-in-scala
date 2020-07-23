@@ -2,6 +2,7 @@ package decaf.backend.asm
 
 import decaf.lowlevel.AsmCodePrinter
 import decaf.lowlevel.instr.{NativeInstr, Reg, Temp}
+import decaf.lowlevel.tac.TacInstr
 import decaf.lowlevel.label.Label
 
 /**
@@ -27,6 +28,13 @@ abstract class SubroutineEmitter protected(val emitter: AsmEmitter, var info: Su
     * @param src source temp
     */
   def emitLoadFromStack(dst: Reg, src: Temp): Unit
+
+  /**
+   * Load the information of call
+   * 
+   * @param instr instruction
+   */
+  def emitCall(instr: Int): Unit
 
   /**
     * Append an assembly instruction that copies value between two registers.

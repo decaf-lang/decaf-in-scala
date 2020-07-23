@@ -161,7 +161,7 @@ public class FuncVisitor {
     public Temp visitNewClass(String clazz) {
         var temp = freshTemp();
         var entry = ctx.getConstructorLabel(clazz);
-        func.add(new TacInstr.DirectCall(temp, entry));
+        func.add(new TacInstr.DirectCall(temp, entry, 1));
         return temp;
     }
 
@@ -195,7 +195,8 @@ public class FuncVisitor {
      * @param clazz      class name
      * @param method     member method name
      * @param args       argument temps
-     * @param needReturn do we need a fresh temp to store the return value? (default false)
+     * @param needReturn do we need a fresh temp to store the return value? (default
+     *                   false)
      * @return the fresh temp if we need return (or else null)
      */
     public Temp visitMemberCall(Temp object, String clazz, String method, List<Temp> args, boolean needReturn) {
@@ -209,9 +210,9 @@ public class FuncVisitor {
         }
         if (needReturn) {
             temp = freshTemp();
-            func.add(new TacInstr.IndirectCall(temp, entry));
+            func.add(new TacInstr.IndirectCall(temp, entry, args.size()));
         } else {
-            func.add(new TacInstr.IndirectCall(entry));
+            func.add(new TacInstr.IndirectCall(entry, args.size()));
         }
         return temp;
     }
@@ -229,7 +230,8 @@ public class FuncVisitor {
      * @param clazz      class name
      * @param method     method name
      * @param args       argument temps
-     * @param needReturn do we need a fresh temp to store the return value? (default false)
+     * @param needReturn do we need a fresh temp to store the return value? (default
+     *                   false)
      * @return the fresh temp if we need return (or else null)
      */
     public Temp visitStaticCall(String clazz, String method, List<Temp> args, boolean needReturn) {
@@ -241,9 +243,9 @@ public class FuncVisitor {
         }
         if (needReturn) {
             temp = freshTemp();
-            func.add(new TacInstr.DirectCall(temp, entry));
+            func.add(new TacInstr.DirectCall(temp, entry, args.size()));
         } else {
-            func.add(new TacInstr.DirectCall(entry));
+            func.add(new TacInstr.DirectCall(entry, args.size()));
         }
         return temp;
     }
@@ -259,7 +261,8 @@ public class FuncVisitor {
      * Append instructions to invoke an intrinsic method.
      *
      * @param func       intrinsic function
-     * @param needReturn do we need a fresh temp to store the return value? (default false)
+     * @param needReturn do we need a fresh temp to store the return value? (default
+     *                   false)
      * @param args       argument temps
      * @return the fresh temp if we need return (or else null)
      */
@@ -271,9 +274,9 @@ public class FuncVisitor {
         }
         if (needReturn) {
             temp = freshTemp();
-            this.func.add(new TacInstr.DirectCall(temp, func));
+            this.func.add(new TacInstr.DirectCall(temp, func, args.length));
         } else {
-            this.func.add(new TacInstr.DirectCall(func));
+            this.func.add(new TacInstr.DirectCall(func, args.length));
         }
         return temp;
     }
@@ -394,8 +397,9 @@ public class FuncVisitor {
     /**
      * Get the temp for the {@code index}-th argument.
      * <p>
-     * According to TAC virtual machine calling convention, for a function with {@code n} arguments, the temps with id
-     * from 0 to {@code n - 1} are reserved for passing these {@code n} arguments.
+     * According to TAC virtual machine calling convention, for a function with
+     * {@code n} arguments, the temps with id from 0 to {@code n - 1} are reserved
+     * for passing these {@code n} arguments.
      *
      * @param index argument index, start from 0
      * @return temp
